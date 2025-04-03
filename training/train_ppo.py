@@ -36,7 +36,7 @@ ACTOR_LR = 3e-4
 CRITIC_LR = 1e-3
 UPDATE_EPOCHS = 10
 BATCH_SIZE = 64
-TOTAL_EPISODES = 1
+TOTAL_EPISODES = 50
 METRICS_PATH = "metrics/ppo_metrics.csv"
 MODEL_PATH = "models/ppo_model.h5"
 
