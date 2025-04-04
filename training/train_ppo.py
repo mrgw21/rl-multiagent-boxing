@@ -9,33 +9,33 @@ from tensorflow.keras import layers, Model, optimizers
 from datetime import datetime
 from training.metrics import MetricsLogger
 
-# Setup
+# Setup folders
 os.makedirs("models", exist_ok=True)
 os.makedirs("metrics", exist_ok=True)
 os.makedirs("plots", exist_ok=True)
 
-# TensorFlow multi-GPU setup
+# Multi-GPU setup
 gpus = tf.config.list_physical_devices('GPU')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 if gpus:
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
     strategy = tf.distribute.MirroredStrategy()
-    print(f"Using MirroredStrategy with {strategy.num_replicas_in_sync} GPUs")
+    print(f"✅ Using MirroredStrategy with {strategy.num_replicas_in_sync} GPUs")
 else:
     strategy = tf.distribute.get_strategy()
 
 print("Num GPUs Available:", len(gpus))
 print("Training started at:", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-# Hyperparameters
+# Optimized Hyperparameters
 GAMMA = 0.99
 CLIP_EPSILON = 0.2
 ENTROPY_COEF = 0.01
 ACTOR_LR = 3e-4
 CRITIC_LR = 1e-3
-UPDATE_EPOCHS = 10
-BATCH_SIZE = 64
+UPDATE_EPOCHS = 5
+BATCH_SIZE = 2048
 TOTAL_EPISODES = 50
 METRICS_PATH = "metrics/ppo_metrics.csv"
 MODEL_PATH = "models/ppo_model.h5"
@@ -136,7 +136,7 @@ def main():
     env = gym.make("ALE/Boxing-v5", render_mode=None)
     obs_shape = preprocess(env.reset()[0]).shape
     agent = PPOAgent(obs_shape, env.action_space)
-    logger = MetricsLogger(save_path="metrics", run_name="ppo")  # Save CSV to metrics/
+    logger = MetricsLogger(save_path="metrics", run_name="ppo")
 
     for episode in range(TOTAL_EPISODES):
         print(f"--- Episode {episode} ---")
@@ -147,12 +147,10 @@ def main():
             obs_proc = preprocess(obs)
             action, prob = agent.get_action(obs_proc)
             value = agent.critic(np.expand_dims(obs_proc / 255.0, axis=0)).numpy()[0, 0]
-
             obs_list.append(obs_proc)
             action_list.append(action)
             prob_list.append(prob)
             value_list.append(value)
-
             obs, reward, done, _, _ = env.step(action)
             reward_list.append(reward)
             steps += 1
@@ -167,9 +165,7 @@ def main():
     logger.plot()
     plt.savefig("plots/ppo_plot.png")
     agent.actor.save(MODEL_PATH)
-    print(f"Training complete. Outputs saved to:\n  - {METRICS_PATH}\n  - {MODEL_PATH}\n  - plots/ppo_plot.png")
-
-
+    print(f"Training complete. Saved to:\n  📈 {METRICS_PATH}\n  💾 {MODEL_PATH}\n  🖼️ plots/ppo_plot.png")
 
 if __name__ == "__main__":
     main()
