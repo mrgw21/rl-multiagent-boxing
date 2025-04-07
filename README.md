@@ -2,67 +2,108 @@
 
 A reinforcement learning project built for the CM50270 coursework at the University of Bath.
 
-This project trains two agents (PPO and DQN) to play Atari Boxing using the Gym ALE environment. You can also test agents like RandomAgent1 vs RandomAgent2 or watch the final trained models compete.
+This project trains two agents (PPO and DQN) to play Atari Boxing using the Gym ALE environment. You can also test agents like `RandoAgent1` vs `RandoAgent2` or watch the final trained models compete in real time.
+
+---
 
 ## Getting Started
 
-NOTE: On Windows, things are a little complicated. The multi-agent-ale package won't compile at all, so you need to install it under [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install). Install WSL, then follow the Linux instructions below plus any WSL specific comments :)
+> **Windows users**:  
+> The `multi-agent-ale-py` package **does not compile on native Windows**.  
+> You must use [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to run this project.  
+> Once WSL is installed, follow the WSL/Linux instructions below.
+
+---
 
 ### 1. Clone the repository
+
 ```bash
 git clone https://github.com/YOUR-TEAM-NAME/rl-boxing.git
 cd rl-boxing
 ```
 
+---
+
 ### 2. Create a virtual environment (recommended)
+
 ```bash
 python3 -m venv venv
 
-#For Mac/Linux/WSL:
+# For Mac/Linux/WSL:
 source venv/bin/activate
 ```
 
-### 3. Install the dependencies
-```bash
-sudo apt install cmake swig zlib1g-dev #Linux only. apt for Ubuntu/Debian etc., your package manager of choice otherwise.
+---
 
-#For Mac/Linux/WSL:
-pip install -r requirements.txt 
+### 3. Install Dependencies
+
+#### If you're training agents (on Linux/Hex/WSL):
+
+```bash
+sudo apt install cmake swig zlib1g-dev python3-dev build-essential  # Linux/WSL only
+
+pip install -r requirements.txt
 ```
 
+#### If you're rendering locally on macOS:
+
+```bash
+pip install -r mac_rendering_requirements.txt
+```
+
+#### 🪟🐧 If you're rendering in WSL (with X server like VcXsrv):
+
+```bash
+sudo apt install cmake swig zlib1g-dev python3-dev build-essential
+pip install -r wsl_rendering_reqs.txt
+
+# Then add this to ~/.bashrc or ~/.zshrc:
+export DISPLAY=:0.0
+```
+
+---
+
 ### 4. Download Atari ROMs
+
 ```bash
 AutoROM --accept-license
 ```
 
-### 5. Run a test match (e.g., Random Agent 1 vs Random Agent 2)
+---
+
+### 5. Run a test match (e.g., RandoAgent1 vs RandoAgent2)
+
 ```bash
 python main_rando.py
-
-#If, using WSL, the game runs but with no display window:
-nano ~/.bashrc
-#Add the following to the end of the file and save
-export DISPLAY=:0.0
-
 ```
 
-### 6. Train PPO or DQN
+---
+
+### 6. Train PPO or DQN agents
+
 ```bash
 python training/train_ppo.py
 python training/train_dqn.py
 ```
 
-### 7. Watch trained agents fight
+---
+
+### 7. Watch trained agents compete
+
 ```bash
 python main.py
 ```
+
+---
 
 ## Agents
 
 - `RandoAgent1`: Random agent with equal probabilities
 - `RandoAgent2`: Slower/weaker random agent (for testing)
-- `PolicyAgent`: PPO agent (trained in `train_ppo.py`)
-- `DQNAgent`: DQN agent (trained in `train_dqn.py`)
+- `PolicyAgent`: PPO agent (trained via `train_ppo.py`)
+- `DQNAgent`: DQN agent (trained via `train_dqn.py`)
+
+---
 
 ## Project Structure
 
@@ -76,22 +117,25 @@ rl-multiagent-boxing/
 │   └── rando_agent2.py
 ├── models/
 │   ├── ppo_model.h5
-│   └── dqn_model.h5
+│   └── dqn_model. (keras or h5)
 ├── training/
 │   ├── train_ppo.py
 │   └── train_dqn.py
-├── main.py            # PPO vs DQN
-├── main_rando.py      # Random1 vs Random2
-├── requirements.txt
-├── windows-requirements.txt
+├── main.py                     # PPO vs DQN match
+├── main_rando.py               # RandoAgent1 vs RandoAgent2
+├── requirements.txt            # A SAMPLE FILE FOR TRAINING ON HEX
+├── mac_rendering_requirements.txt  # For local rendering on macOS
+├── wsl_rendering_reqs.txt (incoming)      # For rendering via WSL
 └── README.md
 ```
+
+---
 
 ## References
 
 - [Gymnasium ALE Environments](https://gymnasium.farama.org/environments/atari/)
 - [AutoROM tool](https://github.com/Farama-Foundation/AutoROM)
-- [PPO and DQN algorithms](https://spinningup.openai.com/en/latest/algorithms/)
+- [Spinning Up: PPO and DQN algorithms](https://spinningup.openai.com/en/latest/algorithms/)
 
 ---
 
