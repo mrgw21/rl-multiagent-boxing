@@ -42,6 +42,11 @@ source venv/bin/activate
 ```bash
 sudo apt install cmake swig zlib1g-dev python3-dev build-essential  # Linux/WSL only
 
+sudo apt update
+sudo apt install cmake swig zlib1g-dev libboost-all-dev \
+                 libsdl2-dev libsdl2-image-dev \
+                 python3-dev build-essential
+
 pip install -r (your requirements txt file name).txt
 ```
 
