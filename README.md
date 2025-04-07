@@ -37,25 +37,15 @@ source venv/bin/activate
 
 ### 3. Install Dependencies
 
-#### If you're training agents (on Hex):
+#### If you're rendering the boxing gym locally:
 
 ```bash
-sudo apt install cmake swig zlib1g-dev python3-dev build-essential  # Linux/WSL only
-
-pip install -r (your requirements txt file name).txt
+pip install -r render_requirements.txt
 ```
 
-#### If you're rendering locally on macOS:
+#### If you're rendering in WSL (with X server like VcXsrv):
 
 ```bash
-pip install -r mac_rendering_requirements.txt
-```
-
-#### If you're rendering in WSL (with X server like VcXsrv) incoming):
-
-```bash
-sudo apt install cmake swig zlib1g-dev python3-dev build-essential
-
 sudo apt update
 sudo apt install cmake swig zlib1g-dev libboost-all-dev \
                  libsdl2-dev libsdl2-image-dev \
@@ -65,6 +55,12 @@ pip install -r wsl_rendering_reqs.txt
 
 # Then add this to ~/.bashrc or ~/.zshrc:
 export DISPLAY=:0.0
+```
+
+#### If you're training agents (on Hex):
+
+```bash
+pip install -r (your requirements txt file name).txt
 ```
 
 ---
