@@ -37,12 +37,12 @@ source venv/bin/activate
 
 ### 3. Install Dependencies
 
-#### If you're training agents (on Linux/Hex/WSL):
+#### If you're training agents (on Hex):
 
 ```bash
 sudo apt install cmake swig zlib1g-dev python3-dev build-essential  # Linux/WSL only
 
-pip install -r requirements.txt
+pip install -r (your requirements txt file name).txt
 ```
 
 #### If you're rendering locally on macOS:
@@ -51,7 +51,7 @@ pip install -r requirements.txt
 pip install -r mac_rendering_requirements.txt
 ```
 
-#### 🪟🐧 If you're rendering in WSL (with X server like VcXsrv):
+#### If you're rendering in WSL (with X server like VcXsrv) incoming):
 
 ```bash
 sudo apt install cmake swig zlib1g-dev python3-dev build-essential
@@ -123,7 +123,7 @@ rl-multiagent-boxing/
 │   └── train_dqn.py
 ├── main.py                     # PPO vs DQN match
 ├── main_rando.py               # RandoAgent1 vs RandoAgent2
-├── requirements.txt            # A SAMPLE FILE FOR TRAINING ON HEX
+├── training_requirements.txt            # A SAMPLE FILE FOR TRAINING ON HEX
 ├── mac_rendering_requirements.txt  # For local rendering on macOS
 ├── wsl_rendering_reqs.txt (incoming)      # For rendering via WSL
 └── README.md
