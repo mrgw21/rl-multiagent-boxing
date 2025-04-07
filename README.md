@@ -51,7 +51,7 @@ sudo apt install cmake swig zlib1g-dev libboost-all-dev \
                  libsdl2-dev libsdl2-image-dev \
                  python3-dev build-essential
 
-pip install -r wsl_rendering_reqs.txt
+pip install -r og_requirements.txt
 
 # Then add this to ~/.bashrc or ~/.zshrc:
 export DISPLAY=:0.0
