@@ -1,4 +1,4 @@
-# RL Boxing Project
+# RL Multi-agent Boxing Project
 
 A reinforcement learning project built for the second CM50270 coursework at the University of Bath.
 
