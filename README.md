@@ -1,8 +1,8 @@
 # RL Boxing Project
 
-A reinforcement learning project built for the CM50270 coursework at the University of Bath.
+A reinforcement learning project built for the second CM50270 coursework at the University of Bath.
 
-This project trains two agents (PPO and DQN) to play Atari Boxing using the Gym ALE environment. You can also test agents like `RandoAgent1` vs `RandoAgent2` or watch the final trained models compete in real time.
+This project trains agents (like PPO, DQN, and others) to play Atari Boxing using the Gym ALE environment.
 
 ---
 
@@ -137,8 +137,7 @@ rl-multiagent-boxing/
 
 - [Gymnasium ALE Environments](https://gymnasium.farama.org/environments/atari/)
 - [AutoROM tool](https://github.com/Farama-Foundation/AutoROM)
-- [Spinning Up: PPO and DQN algorithms](https://spinningup.openai.com/en/latest/algorithms/)
 
 ---
 
-_University of Bath — CM50270 Reinforcement Learning Coursework_
+_University of Bath — CM50270 Reinforcement Learning Coursework 2_
