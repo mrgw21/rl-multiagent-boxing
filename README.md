@@ -123,9 +123,9 @@ rl-multiagent-boxing/
 ├── training/
 │   ├── train_ppo.py
 │   └── train_dqn.py
-├── main.py                     # PPO vs DQN match
-├── main_rando.py               # RandoAgent1 vs RandoAgent2
-├── training_requirements_draft.txt            # A SAMPLE FILE FOR TRAINING ON HEX
+├── main.py                                 # PPO vs DQN match
+├── main_rando.py                           # RandoAgent1 vs RandoAgent2
+├── training_requirements_draft.txt         # A SAMPLE FILE FOR TRAINING ON HEX
 ├── rendering_requirements.txt              # For local rendering
 ├── og_rendering_requirements.txt           # For WSL local rendering
 └── README.md
