@@ -35,10 +35,6 @@ def gather_data():
         agent.updateInformation(state, reward, done, trunc, info, action)
         
         state = new_state
-            
-
-         
-            
-            
-            
-            
+        
+        if done:
+            agent.updateInformation(state, np.NaN, False, False, np.NaN, np.NaN)

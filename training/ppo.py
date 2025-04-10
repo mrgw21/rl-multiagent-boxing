@@ -26,7 +26,8 @@ class PPOAgent:
     
     def __init__ (self):
         
-        self.gamma = 0.99 
+        self.gamma = 0.99
+        self.lam = 0.95
         self.clip_epsi = 0.2
         self.entropy = 0.01
         self.actor = neural_ne.Actor()
@@ -36,6 +37,7 @@ class PPOAgent:
                 'state': [],
                 'state_value_function': [],
                 'action': [],
+                'done': [],
                 'log_prob_action': [],
                 'reward': [],
                 'cumulative_reward' : 0
@@ -43,8 +45,10 @@ class PPOAgent:
     
     def updateInformation (self, state, reward, done, trunc, info, action):
         """Updates information from the action taken e.g., new states, rewards"""
+        
         self.information['state'].append(state)
         self.information['state_value_function'].append(self.critic.forward(state))
+        self.information['done'].append(done)
         self.information['action'].append(action)
         self.information['log_prob_action'].append('log_prob(action)')
         self.information['reward'].append(reward)
@@ -52,6 +56,7 @@ class PPOAgent:
         
     def reset_information (self):
         """Resets information when the learning experience is over, ready for another one."""
+        
         self.information = {
         'state': [],
         'state_value_function': [],
@@ -65,15 +70,28 @@ class PPOAgent:
         return math.log(action_probability)
     
     def compute_advantages (self, timestamp, state_value_function):
-        """Computes advantages the long way"""
+        """Computes advantages the long way - probably won't be used now"""
         rewards_after_state = self.information['reward'][timestamp:]
         return (sum([rewards_after_state[x] ^ (x+1) for x in range(len(rewards_after_state))]) - state_value_function)
     
     # This needs some more work
-    def compute_gen_advantage_estimation (self, current_state, next_state, reward):
-        """Uses bellman equation to calculate advantage estimate"""
-        current_state_value, next_state_value = self.critic.forward(current_state), self.critic.forward(next_state)
-        return (reward + (self.gamma * next_state_value) - current_state_value)
+    def compute_gen_advantage_estimation (self):
+        """Returns the general advantage estimation"""
+        
+        gae = 0
+        returns = []
+        rewards = self.information['reward']
+        state_value = self.information['state_value_function']
+        done = self.information['done']
+        mask = [1 if x is False else 0 for x in done]
+        
+        for i in range(len(rewards)-1,-1,-1):
+            delta = rewards[i] + (self.gamma * mask[i] * state_value[i+1]) - state_value[i]
+            gae = delta + (self.gamma * mask[i] * self.lam * gae)
+            returns.insert(0, gae + state_value[i])
+        
+        adv = np.array(returns) - state_value[:-1]
+        return returns, (adv - np.mean(adv)) / (np.std(adv) + 1e-10)
     
     
     def clipping(self, advantage, old_probability, new_probability):
