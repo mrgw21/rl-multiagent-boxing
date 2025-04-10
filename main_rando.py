@@ -7,33 +7,37 @@ import time
 def main():
     print("RandoAgent1 (white) vs RandoAgent2 (black)")
 
-    env = boxing_v2.env(render_mode="human")
-    env.reset()
+    # Use parallel_env instead of env
+    env = boxing_v2.parallel_env(render_mode="human")
+    observations, infos = env.reset()
 
+    # Initialize agents
     agent1 = RandoAgent1(env.action_space("first_0"))
     agent2 = RandoAgent2(env.action_space("second_0"))
 
-    total_rewards = {"first_0": 0, "second_0": 0}
-    done = False
+    total_rewards = {agent: 0 for agent in env.agents}
 
-    for agent in env.agent_iter():
-        obs, reward, termination, truncation, info = env.last()
-        total_rewards[agent] += reward
+    while env.agents:  # While there are still active agents
+        actions = {}
 
-        if termination or truncation:
-            action = None  # Required by PettingZoo when agent is done
-        else:
+        for agent, obs in observations.items():
             if agent == "first_0":
-                action = agent1.act(obs)
-            else:
-                action = agent2.act(obs)
+                actions[agent] = agent1.act(obs)
+            elif agent == "second_0":
+                actions[agent] = agent2.act(obs)
 
-        env.step(action)
+        # Step the environment with the actions
+        observations, rewards, terminations, truncations, infos = env.step(actions)
+
+        # Track rewards
+        for agent in rewards:
+            total_rewards[agent] += rewards[agent]
+
         time.sleep(0.01)
 
-    print(f"\n✅ Fight Over!")
-    print(f"🏳️ White (RandoAgent1): {total_rewards['first_0']}")
-    print(f"🖤 Black (RandoAgent2): {total_rewards['second_0']}")
+    print(f"\nFight Over!")
+    print(f"White (RandoAgent1): {total_rewards['first_0']}")
+    print(f"Black (RandoAgent2): {total_rewards['second_0']}")
     env.close()
 
 if __name__ == "__main__":
