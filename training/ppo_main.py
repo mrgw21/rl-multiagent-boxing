@@ -26,13 +26,13 @@ def gather_data():
     while not done:
     
         # Retrieves the action to be taken
-        action = agent.get_action(state)
+        action, prob = agent.get_action(state)
         
         # Executes function and retrieves information
         new_state, reward, done, trunc, info = env.step(action)
         
         # Updates the information for that timestamp into the information dictionary
-        agent.updateInformation(state, reward, done, trunc, info, action)
+        agent.updateInformation(state, reward, done, trunc, info, action, prob)
         
         state = new_state
         
