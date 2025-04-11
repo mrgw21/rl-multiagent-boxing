@@ -1,55 +1,84 @@
 from pettingzoo.atari import boxing_v2
 import numpy as np
-import tensorflow as tf
+import torch
+import torch.nn as nn
+import torchvision.transforms as T
 import time
-from agents.dqn_agent import DQNAgent  # Ensure this path is correct based on your repo structure
+from agents.dqn_agent import QNetwork  # Ensure this class matches your training script
 
-# Load PPO model
+# --- Load PPO model (unchanged, TensorFlow) ---
+import tensorflow as tf
 ppo_model = tf.keras.models.load_model("models/ppo_model.h5")
 
-# Load DQN model
-dqn_model = tf.keras.models.load_model("models/50_dqn_model.keras")
+# --- Load PyTorch DQN model (expects 4 stacked grayscale frames) ---
+dqn_model = QNetwork(input_shape=(4, 84, 84), num_actions=18)
+dqn_model.load_state_dict(torch.load("models/boxing_dqn.pt", map_location=torch.device('cpu')))
+dqn_model.eval()
 
-def preprocess(obs):
-    obs = tf.image.resize(obs, [84, 84])
-    obs = tf.image.convert_image_dtype(obs, tf.uint8)
-    return obs.numpy()
-
-def ppo_act(obs):
+# --- PPO expects: grayscale (210, 160, 1) ---
+def preprocess_for_ppo(obs):
     obs_proc = tf.image.rgb_to_grayscale(obs)
-    obs_proc = np.expand_dims(obs_proc, axis=0).astype(np.float32) / 255.0
+    obs_proc = tf.cast(obs_proc, tf.float32) / 255.0
+    obs_proc = tf.expand_dims(obs_proc, axis=0)  # (1, 210, 160, 1)
+    return obs_proc
+
+# --- DQN expects: stacked grayscale frames (4, 84, 84) ---
+resize_gray = T.Compose([
+    T.ToPILImage(),
+    T.Grayscale(),
+    T.Resize((84, 84)),
+    T.ToTensor()  # shape: (1, 84, 84)
+])
+
+from collections import deque
+frame_stack = deque(maxlen=4)
+
+def preprocess_for_dqn(obs):
+    frame = resize_gray(obs)  # shape: (1, 84, 84)
+    if len(frame_stack) < 4:
+        for _ in range(4):
+            frame_stack.append(frame)
+    else:
+        frame_stack.append(frame)
+    stacked = torch.cat(list(frame_stack), dim=0)  # shape: (4, 84, 84)
+    return stacked.unsqueeze(0)  # shape: (1, 4, 84, 84)
+
+# --- Action functions ---
+def ppo_act(obs):
+    obs_proc = preprocess_for_ppo(obs)
     probs = ppo_model(obs_proc).numpy()[0]
     return np.random.choice(len(probs), p=probs)
 
 def dqn_act(obs):
-    obs_proc = tf.image.resize(obs, [84, 84])
-    obs_proc = obs_proc.numpy().astype(np.float32) / 255.0
-    obs_proc = np.expand_dims(obs_proc, axis=0)
-    q_values = dqn_model(obs_proc).numpy()[0]
-    return int(np.argmax(q_values))
+    obs_proc = preprocess_for_dqn(obs)
+    with torch.no_grad():
+        q_values = dqn_model(obs_proc)
+    return int(torch.argmax(q_values[0]))
 
+# --- Main loop ---
 def main():
     print("PPO Agent (white) vs DQN Agent (black)")
 
-    env = boxing_v2.env(render_mode="human")
-    env.reset()
+    env = boxing_v2.parallel_env(render_mode="human")
+    observations, infos = env.reset()
 
-    total_rewards = {"first_0": 0, "second_0": 0}
+    total_rewards = {agent: 0 for agent in env.agents}
 
-    for agent in env.agent_iter():
-        obs, reward, termination, truncation, _ = env.last()
-        total_rewards[agent] += reward
+    while env.agents:
+        actions = {}
 
-        if termination or truncation:
-            action = None
-        else:
+        for agent, obs in observations.items():
             if agent == "first_0":
-                action = ppo_act(obs)
-            else:
-                action = dqn_act(obs)
+                actions[agent] = ppo_act(obs)
+            elif agent == "second_0":
+                actions[agent] = dqn_act(obs)
 
-        env.step(action)
-        time.sleep(0.01)  # Visual pacing
+        observations, rewards, terminations, truncations, infos = env.step(actions)
+
+        for agent in rewards:
+            total_rewards[agent] += rewards[agent]
+
+        time.sleep(0.01)
 
     print("\nFight Over!")
     print(f"PPO Agent (white): {total_rewards['first_0']}")
