@@ -78,19 +78,4 @@ class Critic(nn.Module):
             # Final output layer - outputs a scalar value V(s)
             nn.Linear(512, 1)
         )
-        self.optimizer = torch.optim.Adam
-
-    def forward(self, x):
-        # Forward pass through feature extractor then FC head
-        x = self.features(x)
-        return self.fc(x)
-    
-    def compile (self):
-        pass
-    
-    def train (self):
-        pass
-    
-model = Critic()
-print(model)
-    
+        self.optimizer =
