@@ -57,7 +57,7 @@ class Actor(nn.Module):
             # output logits for each action (18 actions)
             nn.Linear(512, n_actions)
         )
-        self.optimizer = torch.optim.Adam
+        self.optimizer = torch.optim.Adam(self.parameters(),lr=1e-4)
 
     def forward(self, x):
         # Forward pass through feature extractor then fully connected head
@@ -82,7 +82,7 @@ class Critic(nn.Module):
             # Final output layer - outputs a scalar value V(s)
             nn.Linear(512, 1)
         )
-        self.optimizer = torch.optim.Adam
+        self.optimizer = torch.optim.Adam(self.parameters(),lr=1e-4)
 
     def forward(self, x):
         # Forward pass through feature extractor then FC head

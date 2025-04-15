@@ -87,7 +87,7 @@ class PPOAgent:
         done = self.information['done']
         mask = [1 if x is False else 0 for x in done]
         
-        for i in range(len(rewards)-1,-1,-1):
+        for i in range(len(rewards)-2,-1,-1):
             delta = rewards[i] + (self.gamma * mask[i] * state_value[i+1]) - state_value[i]
             gae = delta + (self.gamma * mask[i] * self.lam * gae)
             returns.insert(0, gae + state_value[i])
@@ -155,15 +155,18 @@ class PPOAgent:
     
     def learn (self, batch_size = 64, epochs = 10):
         # Get all information from the agent
-        states = self.information['state']
-        actions = self.information['action']
-        old_action_prob = torch.tensor(self.information['lob_prob_action'], dtype = torch.float32)
-        rewards = self.information['reward']
+        states = torch.stack(self.information['state'])
+        states = states.squeeze(1)
+        actions = torch.stack(self.information['action'])
+        old_action_prob = torch.tensor(self.information['log_prob_action'], dtype = torch.float32)
+        rewards = torch.tensor(self.information['reward'], dtype = torch.float32)
+        state_value = torch.tensor(self.information['state_value_function'], dtype=torch.float32)
         done = self.information['done']
-        state_value = self.information['state_value_function']
         
         # Computes returns and advantages ready for NN training
         returns, advantages = self.compute_gen_advantage_estimation()
+        returns = torch.tensor(returns, dtype=torch.float32)
+        advantages = torch.tensor(advantages, dtype=torch.float32)
         
         dataset_size = len(done)
         
@@ -176,7 +179,7 @@ class PPOAgent:
                 if end > dataset_size:
                     end = dataset_size
                 
-                batch_idx = indices[start:end]
+                batch_idx = indices[start:end].to(torch.long)
                 
                 batch_states = states[batch_idx]
                 batch_actions = actions[batch_idx]
@@ -185,8 +188,8 @@ class PPOAgent:
                 batch_advantages = advantages[batch_idx]
                 batch_state_value = state_value[batch_idx]
         
-        
-        
+                print(1)
+ 
                 logits = self.actor.forward(batch_states)
                 dist = Categorical(logits=logits)
                 new_action_prob = dist.log_prob(batch_actions)
@@ -198,7 +201,7 @@ class PPOAgent:
                 policy_loss, value_loss = self.calculate_losses(surrogate_loss, entropy_loss, batch_returns, batch_state_value)
                 
                 total_loss = policy_loss + 0.5 * value_loss
-                
+                print(2)
                 self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
                 
@@ -206,8 +209,11 @@ class PPOAgent:
                 
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
-        
+                print(3)
         self.reset_information()
     
     def access_cumulative_reward (self):
         return self.information['cumulative_reward']
+
+    def access_information(self):
+        return self.information
