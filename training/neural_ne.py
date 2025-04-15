@@ -54,12 +54,7 @@ class Actor(nn.Module):
         # Forward pass through feature extractor then fully connected head
         x = self.features(x)
         return self.fc(x)
-    
-    def compile (self):
-        pass
-    
-    def train (self):
-        pass
+
 
 # critic network outputs scalar value for state
 class Critic(nn.Module):
@@ -78,4 +73,9 @@ class Critic(nn.Module):
             # Final output layer - outputs a scalar value V(s)
             nn.Linear(512, 1)
         )
-        self.optimizer =
+        self.optimizer = torch.optim.Adam
+
+    def forward(self, x):
+        # Forward pass through feature extractor then FC head
+        x = self.features(x)
+        return self.fc(x)

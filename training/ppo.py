@@ -89,4 +89,86 @@ class PPOAgent:
         mask = [1 if x is False else 0 for x in done]
         
         for i in range(len(rewards)-1,-1,-1):
-            delta = rewards[i] + (self.gamma * 
+            delta = rewards[i] + (self.gamma * mask[i] * state_value[i+1]) - state_value[i]
+            gae = delta + (self.gamma * mask[i] * self.lam * gae)
+            returns.insert(0, gae + state_value[i])
+        
+        adv = torch.tensor(np.array(returns) - state_value[:-1], dtype=torch.float32)
+        adv = (adv - torch.mean(adv)) / (torch.std(adv) + 1e-10)
+        returns = torch.tensor(returns, dtype=torch.float32)
+        
+        return returns, adv
+    
+    
+    def clipped_surrogate_loss(self, advantage, old_probability, new_probability):
+        """Calculates the clipped value"""
+        ratio = new_probability/old_probability
+        
+        unclipped_loss = ratio * advantage
+        clipped_loss = torch.clamp(ratio, 1-self.clip_epsi, 1+self.clip_epsi) * advantage
+        
+        return torch.minimum(unclipped_loss, clipped_loss).mean()
+    
+    def get_action (self, state, evaluate=False):
+        """Gets action from actor NN
+        
+        Inputs: State and Evaluate (bool)
+        Outputs: Selected action, probability of action and entropy
+        
+        """
+        with torch.no_grad():
+            # Returns the output of the actor neural net
+            logits = self.actor.forward(state)
+            # Distribution object
+            dist = Categorical(logits=logits)
+            if evaluate:
+                action = torch.argmax(logits,dim=1).item()
+            else:
+                action = dist.sample().item()
+            probs = torch.squeeze(dist.log_prob(action)).item()
+            return action, probs
+        
+        
+    def get_state_value (self, state):
+        with torch.no_grad():
+            output = self.critic.forward(state)
+            value = torch.squeeze(output).item()
+            return value
+    
+    def calculate_losses (self, surrogate_loss, entropy, returns, value_predictions):
+        entropy_bonus = self.entropy_coef * entropy
+        policy_loss = (-surrogate_loss + entropy_bonus).sum()
+        value_loss = func.smooth_l1_loss(returns, value_predictions).sum()
+        return policy_loss, value_loss
+    
+    def learn (self):
+        states = self.information['state']
+        actions = self.information['action']
+        old_action_prob = torch.tensor(self.information['lob_prob_action'], dtypw = torch.float32)
+        rewards = self.information['reward']
+        done = self.information['done']
+        state_value = self.information['state_value_function']
+        
+        returns, advantages = self.compute_gen_advantage_estimation()
+        
+        logits = self.actor.forward(states)
+        dist = Categorical(logits=logits)
+        new_action_prob = dist.log_prob(actions)
+        
+        entropy_loss = torch.mean(dist.entropy())
+        
+        surrogate_loss = self.clipped_surrogate_loss(advantages, old_action_prob, new_action_prob)
+        
+        policy_loss, value_loss = self.calculate_losses(surrogate_loss, entropy_loss, returns, state_value)
+        
+        total_loss = policy_loss + 0.5 * value_loss
+        
+        self.actor.optimizer.zero_grad()
+        self.critic.optimizer.zero_grad()
+        
+        total_loss.backward()
+        
+        self.actor.optimizer.step()
+        self.critic.optimizer.step()
+        
+        self.reset_information()
