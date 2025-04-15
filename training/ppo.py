@@ -32,7 +32,7 @@ class PPOAgent:
         self.lam = 0.95
         self.clip_epsi = 0.2
         self.entropy_coef = 0.01
-        self.actor = neural_ne.Actor()
+        self.actor = neural_ne.Actor(18)
         self.critic = neural_ne.Critic()
         
         self.information = {
@@ -48,7 +48,6 @@ class PPOAgent:
     def updateInformation (self, state, reward, done, trunc, info, action, action_prob):
         """Updates information from the action taken e.g., new states, rewards"""
         
-        state = torch.tensor(state, dtype=torch.float32)
         action = torch.tensor(action, dtype=torch.int64)
         
         self.information['state'].append(state)
@@ -121,12 +120,14 @@ class PPOAgent:
             logits = self.actor.forward(state)
             # Distribution object
             dist = Categorical(logits=logits)
+        
             if evaluate:
-                action = torch.argmax(logits,dim=1).item()
+                action = torch.argmax(logits, dim=1)
             else:
-                action = dist.sample().item()
-            probs = torch.squeeze(dist.log_prob(action)).item()
-            return action, probs
+                action = dist.sample()
+                log_prob = dist.log_prob(action)
+            
+            return action.item(), log_prob.item()
         
         
     def get_state_value (self, state):
@@ -141,34 +142,74 @@ class PPOAgent:
         value_loss = func.smooth_l1_loss(returns, value_predictions).sum()
         return policy_loss, value_loss
     
+    @staticmethod
+    def state_manipulation (to_grayscale, state):
+        
+        if isinstance(state, tuple):
+            state = state[0]
+        
+        state = torch.tensor(state, dtype=torch.float32).permute(2, 0, 1) / 255.0
+        state = to_grayscale(state)
+        state = state.unsqueeze(0)
+        return state
+    
     def learn (self):
+        # Get all information from the agent
         states = self.information['state']
         actions = self.information['action']
-        old_action_prob = torch.tensor(self.information['lob_prob_action'], dtypw = torch.float32)
+        old_action_prob = torch.tensor(self.information['lob_prob_action'], dtype = torch.float32)
         rewards = self.information['reward']
         done = self.information['done']
         state_value = self.information['state_value_function']
         
+        # Computes returns and advantages ready for NN training
         returns, advantages = self.compute_gen_advantage_estimation()
         
-        logits = self.actor.forward(states)
-        dist = Categorical(logits=logits)
-        new_action_prob = dist.log_prob(actions)
+        dataset_size = len(done)
+        batch_size = 64
+        epochs = 10
         
-        entropy_loss = torch.mean(dist.entropy())
+        for _ in range(epochs):
+            indices = torch.randperm(dataset_size)
+
+            for start in range(0, dataset_size, batch_size):
+                
+                end = start + batch_size
+                if end > dataset_size:
+                    end = dataset_size
+                
+                batch_idx = indices[start:end]
+                
+                batch_states = states[batch_idx]
+                batch_actions = actions[batch_idx]
+                batch_old_action_prob = old_action_prob[batch_idx]
+                batch_returns = returns[batch_idx]
+                batch_advantages = advantages[batch_idx]
+                batch_state_value = state_value[batch_idx]
         
-        surrogate_loss = self.clipped_surrogate_loss(advantages, old_action_prob, new_action_prob)
         
-        policy_loss, value_loss = self.calculate_losses(surrogate_loss, entropy_loss, returns, state_value)
         
-        total_loss = policy_loss + 0.5 * value_loss
+                logits = self.actor.forward(batch_states)
+                dist = Categorical(logits=logits)
+                new_action_prob = dist.log_prob(batch_actions)
         
-        self.actor.optimizer.zero_grad()
-        self.critic.optimizer.zero_grad()
-        
-        total_loss.backward()
-        
-        self.actor.optimizer.step()
-        self.critic.optimizer.step()
+                entropy_loss = torch.mean(dist.entropy())
+                
+                surrogate_loss = self.clipped_surrogate_loss(batch_advantages, batch_old_action_prob, new_action_prob)
+                
+                policy_loss, value_loss = self.calculate_losses(surrogate_loss, entropy_loss, batch_returns, batch_state_value)
+                
+                total_loss = policy_loss + 0.5 * value_loss
+                
+                self.actor.optimizer.zero_grad()
+                self.critic.optimizer.zero_grad()
+                
+                total_loss.backward()
+                
+                self.actor.optimizer.step()
+                self.critic.optimizer.step()
         
         self.reset_information()
+    
+    def access_information (self):
+        return self.information
