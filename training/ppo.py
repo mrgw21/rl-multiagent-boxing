@@ -153,7 +153,7 @@ class PPOAgent:
         state = state.unsqueeze(0)
         return state
     
-    def learn (self):
+    def learn (self, batch_size = 64, epochs = 10):
         # Get all information from the agent
         states = self.information['state']
         actions = self.information['action']
@@ -166,8 +166,6 @@ class PPOAgent:
         returns, advantages = self.compute_gen_advantage_estimation()
         
         dataset_size = len(done)
-        batch_size = 64
-        epochs = 10
         
         for _ in range(epochs):
             indices = torch.randperm(dataset_size)
@@ -211,5 +209,5 @@ class PPOAgent:
         
         self.reset_information()
     
-    def access_information (self):
-        return self.information
+    def access_cumulative_reward (self):
+        return self.information['cumulative_reward']
