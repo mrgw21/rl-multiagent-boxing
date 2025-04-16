@@ -56,4 +56,5 @@ def output_to_excel(info: list):
     df = pd.DataFrame(info, columns=['Values'])
     df.to_excel('rewards.xlsx', index=False, sheet_name='sheet1')
 
-gather_data()
+if __name__ == "__main__":
+    gather_data()
