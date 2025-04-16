@@ -43,22 +43,31 @@ class TileCoder:
 
         self.tiles = []
         # Create the necessary number of tiles based on self.num_tile_grids then add them to the self.tiles list
-        for i in range(self.num_tile_grids):
-            # For each tile grid, apply a different offset (1.5 to add a larger offset)
-            offset = (i * 1.5 /self.num_tile_grids) * self.tile_width
+        half_grids = self.num_tile_grids // 2 # allows new tiles to be centred around initial tiles rather than only offset in one direction
+        # If num tile grids is odd
+        if self.num_tile_grids % 2 == 1:
+            offsets = np.arange(-half_grids, half_grids + 1)
+        # Even
+        else:
+            offsets = np.arange(-half_grids, half_grids)
+
+        for offset_factor in offsets:
+            # For each tile grid, apply a different offset using the factors from above
+            offset = (offset_factor / self.num_tile_grids) * self.tile_width
             self.tiles.append(self.create_tile(offset)) # Create the tile grid using the unique offset
     
-    def create_tile(self, offset):
+    def create_tile(self, offset_factor):
         """
         Function that creates a new tile grid using the provided offset.
         It first updates the original min and max values with the offset and then defines the new individual tile boundaries.
         """
+        offset = np.ones_like(self.min_value) * offset_factor
         tile_grid = [] # Used to store the tile boundaries - cut offs
         # For each tile in a grid apply offset and calculate new boundaries
         for i in range(len(self.bins)):
             # Shift min and max values by offset
-            low = self.min_value[i] + offset[i]
-            high = self.max_value[i] + offset[i]
+            low = self.min_value[i] + offset[i] * self.tile_width[i]
+            high = self.max_value[i] + offset[i] * self.tile_width[i]
             # Identify the new points where the tile boundaries will be (i.e. tile boundaries with offset)
             tile_boundaries = np.linspace(low, high, self.bins[i] + 1)
             tile_grid.append(tile_boundaries)
@@ -68,6 +77,9 @@ class TileCoder:
         """
         Function that finds the discrete location of each state feature in one tile grid.
         """
+        if len(state) != len(grid):
+            raise ValueError("State length and grid dimensions mismatch")
+
         discrete_location = []
         
         # For each feature in the state (player position etc.)
@@ -98,7 +110,7 @@ class TileCoder:
         Function that takes in the state and returns a binary feature vector that represents the discretised state
         For each tile grid, the function calculates which tile the state is in and sets this index in the feature vector to 1
         """
-        state = np.array(state)
+        state = np.array(state, dtype=np.float32).flatten()
         
         # Calculate total size of one tile grid and then all tile grids (bins per dimension * number of tile grids)
         total_bins = np.prod(self.bins) # Total number of possible tiles per grid
@@ -109,15 +121,8 @@ class TileCoder:
             # Get the index for the given state in this tile grid
             bin_indices = self.discretise(state, grid)
             
-            # Need to go from a multi-dimensional bin index e.g. (1,2,3) to one dimensional e.g. (6)
-            flat_idx = 0
-            multiplier = 1 # Needed to shift index for each different tile grid
-            # Loop through each bin index starting from the last dimension
-            for dim_idx in reversed(range(len(bin_indices))):
-                bin_index = bin_indices[dim_idx]
-                flat_idx += bin_index * multiplier
-                if dim_idx > 0: # If it isn't the first dimension, update the multiplier
-                    multiplier *= self.bins[dim_idx-1]
+            # Convert multi-dimensional bin index to one-dimensional
+            flat_idx = np.ravel_multi_index(bin_indices, self.bins)
             
             # Calculate the final index in the feature vector for this tile grid
             feature_idx = tiling_idx * total_bins + flat_idx
@@ -128,6 +133,17 @@ class TileCoder:
 #############################################################################
 ############# CODE TO CHECK THIS WORKS - CAN DELETE/COMMENT OUT #############
 #############################################################################
+
+# state = [100, 12, 14, 96, -86, -84]
+# min_value = [0, 0, 0, 0, -120, -120]  # min_player_x, min_player_y, min_opponent_x, min_opponent_y
+# max_value = [120, 120, 120, 120, 120, 120]  # max values for each position
+
+# # Create a tile coder with 10x10 bins in each dimension and 4 tilings
+# bins = [10, 10, 10, 10, 10, 10]  # divide each dimension into 10 bins
+# num_tilings = 10
+# tile_coder = TileCoder(min_value, max_value, bins, num_tilings)
+# ds = tile_coder.get_feature_vector(state)
+# print(len(ds))
 
 # env = boxing_v2.parallel_env(render_mode="human", obs_type="ram")
 # observations = env.reset()
