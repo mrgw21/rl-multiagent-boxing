@@ -74,4 +74,15 @@ class Critic(nn.Module):
             nn.Linear(128 * 13 * 10, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
-            # Fi
+            # Final output layer - outputs a scalar value V(s)
+            nn.Linear(512, 1)
+        )
+        self.optimizer = torch.optim.Adam(self.parameters(),lr=1e-4)
+
+    def forward(self, x):
+        # Forward pass through feature extractor then FC head
+        x = self.features(x)
+        return self.fc(x)
+    
+    def save_model (self, path = "training/models/critic_model.pth"):
+        torch.save(self.state_dict(), path)
