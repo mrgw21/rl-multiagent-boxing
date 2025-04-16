@@ -40,14 +40,6 @@ class Actor(nn.Module):
         super(Actor, self).__init__()
         self.features = CNNFeatureExtractor()
         
-        """
-        dummy_input = torch.randn(1, 1, 210, 160)
-        with torch.no_grad():
-            output = self.features(dummy_input)
-            flat_size = output.view(1, -1).size(1)
-            print(f"Flattened size: {flat_size}")
-        """
-        
         self.fc = nn.Sequential(
             nn.Flatten(),
             # Fully connected layer to interpret features
@@ -63,6 +55,9 @@ class Actor(nn.Module):
         # Forward pass through feature extractor then fully connected head
         x = self.features(x)
         return self.fc(x)
+    
+    def save_model (self, path = "training/models/actor_model.pth"):
+        torch.save(self.state_dict(), path)
 
 
 # critic network outputs scalar value for state
@@ -79,12 +74,4 @@ class Critic(nn.Module):
             nn.Linear(128 * 13 * 10, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
-            # Final output layer - outputs a scalar value V(s)
-            nn.Linear(512, 1)
-        )
-        self.optimizer = torch.optim.Adam(self.parameters(),lr=1e-4)
-
-    def forward(self, x):
-        # Forward pass through feature extractor then FC head
-        x = self.features(x)
-        return self.fc(x)
+            # Fi

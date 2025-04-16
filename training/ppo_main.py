@@ -17,10 +17,12 @@ to_grayscale = T.Grayscale(num_output_channels=1)
 def gather_data():
     """Gathers data for a full episode"""
     cumulative_reward = 0
-    while cumulative_reward < 80:
+    reward_tracker = []
+    for x in range(100):
         done = False
         state = env.reset()
-
+        cumulative_reward = 0
+        
         while not done:
             
             # Turns it into a tensor for neural net input
@@ -39,14 +41,19 @@ def gather_data():
             agent.updateInformation(state, reward, done, trunc, info, action, prob)
             
             state = new_state
+            
         cumulative_reward = agent.access_cumulative_reward()
+        reward_tracker.append(cumulative_reward)
         agent.learn()
+    
+    # Saving model once complete
+    agent.actor.save_model()
+    agent.critic.save_model()
+    output_to_excel(reward_tracker)
             
 
-def output_to_excel(info: dict[list]):
-    info_to_export = {k: v for k, v in info.items() if isinstance(v, list)}
-    
-    df = pd.DataFrame(info_to_export)
-    df.to_excel("output.xlsx", index=False)
+def output_to_excel(info: list):
+    df = pd.DataFrame(info, columns=['Values'])
+    df.to_excel('rewards.xlsx', index=False, sheet_name='sheet1')
 
 gather_data()
