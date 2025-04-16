@@ -16,7 +16,7 @@ COPY requirements.txt .
 
 # Python dependencies including OpenCV (headless)
 RUN python3.8 -m pip install --upgrade pip && \
-    python3.8 -m pip install -r requirements.txt && \
+    python3.8 -m pip install -r g_requirements.txt && \
     python3.8 -m pip install opencv-python-headless
 
 # Install Atari ROMs (AutoROM is now installed via requirements)
