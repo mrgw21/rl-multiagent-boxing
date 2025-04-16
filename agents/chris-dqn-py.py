@@ -16,8 +16,7 @@ batchSize = 32
 env = gym.make("ALE/Boxing-v5",frameskip=1) #No frameskip as this is done in the preprocessing wrapper
 noOfActions = env.action_space.n
 
-device="cuda"
-torch.device = device
+device=torch.device("cuda") #Use GPUs
 
 lossFunction = nn.HuberLoss() #Loss function for nn optimisation
 
@@ -58,6 +57,9 @@ class DeepQNetwork(nn.Module):
             nn.Linear(512, noOfActions)
         )
 
+        self.convolutionalLayers = nn.DataParallel(self.convolutionalLayers) #Make sure models use multi GPUs
+        self.fullyConnectedLayers = nn.DataParallel(self.fullyConnectedLayers)
+
         self.convolutionalLayers.to(device=device) #Make sure models are on the correct device (cpu or gpu)
         self.fullyConnectedLayers.to(device=device)
 
@@ -75,6 +77,7 @@ class DQNAgent():
 
         self.policyNet = DeepQNetwork() #Init  policy and target net
         self.targetNet = DeepQNetwork()
+
         self.updateTargetNet() #Set target net to the same weights as policy net
 
         self.memory = deque(maxlen=replaySize) #Init replay memory
