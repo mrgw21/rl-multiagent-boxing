@@ -16,23 +16,35 @@ def load_agent(path):
     print(f"Agent successfully loaded from {path}.")
     return agent
 
-def test_agent(agent, render_mode="human"):
+def test_agent(agent, episodes=5, render_mode="human", difficulty=0):
     """Run and render an episode to test the agent's performance after training."""
-    env = gym.make(agent.env.spec.id, render_mode=render_mode)  # Recreate the environment with rendering
-    state, _ = env.reset()  # Unpack the reset tuple
-    total_reward = 0
-    terminal = False
-    truncated = False
+    agent.env = gym.make("ALE/Boxing-ram-v5", obs_type="ram", render_mode=render_mode, difficulty=difficulty)
+    print(f"Testing agent at difficulty level: {difficulty}")
 
-    while not (terminal or truncated):
-        state_features = agent.extract_state_feature(state)  # Use the agent's method to extract features
-        action = agent.policy(state_features, greedy=True)  # Use greedy policy for testing
-        state, reward, terminal, truncated, _ = env.step(action)
-        total_reward += reward
+    total_rewards = []
 
-    env.close()  # Close the environment after testing
-    print(f"Total Reward: {total_reward}")
-    return total_reward
+    # Set epsilon to 0 for greedy policy during testing
+    agent.epsilon = 0
+
+    for episode in range(episodes):
+        state, _ = agent.env.reset()  # Reset the environment
+        state = agent.reduced_feature_extraction(state)  # Extract features from the initial state
+        total_reward = 0
+        terminal = False
+        truncated = False
+
+        while not (terminal or truncated):
+            action = agent.policy(state)  # Use the agent's policy (greedy with epsilon = 0)
+            next_state, reward, terminal, truncated, _ = agent.env.step(action)
+            next_state = agent.reduced_feature_extraction(next_state)  # Extract features from the next state
+            total_reward += reward
+            state = next_state  # Move to the next state
+
+        total_rewards.append(total_reward)
+        print(f"Episode {episode + 1}/{episodes}: Total Reward = {total_reward}")
+
+    agent.env.close()  # Close the environment after testing
+    return total_rewards
 
 def plot_learning_curve(rewards):
     plt.figure(figsize=(12, 6))
@@ -65,17 +77,17 @@ def compare_agents(agent1, agent2, episodes=100):
     Returns both agents so they can be saved.
     """
     # Train first agent - in this case, the standard agent
-    standard_rewards = agent1.double_learn(episodes)
+    agent1_rewards = agent1.double_learn(episodes)
     
     # Train second agent - tile coded agent
-    tile_rewards = agent2.double_learn(episodes)
+    agent2_rewards = agent2.double_learn(episodes)
     
     # Plot comparison using moving averages
     plt.figure(figsize=(12, 6))
     
     window_size = 10
-    standard_avg = [np.mean(standard_rewards[max(0, i-window_size):i+1]) for i in range(len(standard_rewards))]
-    tile_avg = [np.mean(tile_rewards[max(0, i-window_size):i+1]) for i in range(len(tile_rewards))]
+    standard_avg = [np.mean(agent1_rewards[max(0, i-window_size):i+1]) for i in range(len(agent1_rewards))]
+    tile_avg = [np.mean(agent2_rewards[max(0, i-window_size):i+1]) for i in range(len(agent2_rewards))]
     
     plt.plot(standard_avg, label='Standard Agent')
     plt.plot(tile_avg, label='Tile Coded Agent')

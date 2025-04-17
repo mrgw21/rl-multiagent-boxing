@@ -1,7 +1,7 @@
 ale-py==0.8.1
 AutoROM==0.4.2
 AutoROM.accept-rom-license==0.6.1
-certifi==2025.1.31
+certifi>=2023.11.17
 charset-normalizer==3.4.1
 click==8.1.8
 cloudpickle==3.1.1
@@ -10,12 +10,12 @@ gym==0.26.2
 gym-notices==0.0.8
 gymnasium==1.1.1
 idna==3.10
-importlib_resources==6.5.2
+importlib_resources>=6.0.0
 multi-agent-ale-py==0.1.11
-numpy==2.2.4
+numpy>=1.21
 pettingzoo==1.24.3
 pygame==2.6.1
-requests==2.32.3
+requests==2.31.0           # 2.32.3 may be pre-release; safer here
 tqdm==4.67.1
 typing_extensions==4.13.0
-urllib3==2.3.0
+urllib3==2.2.3              # Latest available at time of writing

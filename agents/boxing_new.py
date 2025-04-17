@@ -253,4 +253,3 @@ test_agent(standard_agent)
 test_agent(loaded_s_agent)
 test_agent(tile_agent)
 test_agent(loaded_t_agent)
-
