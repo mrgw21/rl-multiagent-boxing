@@ -10,6 +10,8 @@ At each transistion we need to collect:
 
 """
 
+# ------------- Dependencies -------------------
+
 import math
 import os
 import random
@@ -21,17 +23,19 @@ import neural_ne
 from torch.distributions.categorical import Categorical
 import torch.nn.functional as func
 
-# Hyperparamaters
-# --------------------------------------------------------------------
+# ---------------------------- PPO Class ---------------------------------
 
 class PPOAgent:
     
     def __init__ (self):
         
+        # Hyperparameters
         self.gamma = 0.99
         self.lam = 0.95
         self.clip_epsi = 0.2
         self.entropy_coef = 0.01
+        
+        # Actor and Critic Neural Nets
         self.actor = neural_ne.Actor(18)
         self.critic = neural_ne.Critic()
         
@@ -131,6 +135,8 @@ class PPOAgent:
         
         
     def get_state_value (self, state):
+        """ Given the current state of the agent, this function will return the state value 
+            function from the critic neural net"""
         with torch.no_grad():
             output = self.critic.forward(state)
             value = torch.squeeze(output).item()
@@ -144,16 +150,24 @@ class PPOAgent:
     
     @staticmethod
     def state_manipulation (to_grayscale, state):
+        """Given that the observations of the environment are different data structures between the
+        state after env.reset() and env.step()
         
+        This function normalizes the observation to ensure consistency of the neural net inputs. """
+        
+        # Accounts for the state after env.reset()
         if isinstance(state, tuple):
             state = state[0]
         
+        # Normalizes input and turns to greyscale
         state = torch.tensor(state, dtype=torch.float32).permute(2, 0, 1) / 255.0
         state = to_grayscale(state)
         state = state.unsqueeze(0)
         return state
     
     def learn (self, batch_size = 64, epochs = 10):
+        """This is the learn function of the agent that will train the neural nets"""
+        
         # Get all information from the agent
         states = torch.stack(self.information['state'])
         states = states.squeeze(1)
@@ -188,7 +202,6 @@ class PPOAgent:
                 batch_advantages = advantages[batch_idx]
                 batch_state_value = state_value[batch_idx]
         
-                print(1)
  
                 logits = self.actor.forward(batch_states)
                 dist = Categorical(logits=logits)
@@ -201,7 +214,7 @@ class PPOAgent:
                 policy_loss, value_loss = self.calculate_losses(surrogate_loss, entropy_loss, batch_returns, batch_state_value)
                 
                 total_loss = policy_loss + 0.5 * value_loss
-                print(2)
+                
                 self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
                 
@@ -209,8 +222,11 @@ class PPOAgent:
                 
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
-                print(3)
+                
         self.reset_information()
+
+    
+    """Functions to retrieve information from the object"""
     
     def access_cumulative_reward (self):
         return self.information['cumulative_reward']
