@@ -11,13 +11,13 @@ import ale_py
 # if using gymnasium
 import shimmy
 import time
-from sarsa_double_no_norm import Double_SARSA_Agent
+from sarsa_double import Double_SARSA_Agent
 
 import gymnasium as gym
 import random
 from agent_utils import test_agent, load_agent
 
-agent = load_agent("saved_agents/double_sarsa_best2.pkl")
+agent = load_agent("saved_agents/Double_SARSA_Boxing_19_04_rand_exp.pkl")
 test_agent(agent, episodes=5, render_mode=None, difficulty=0)
 test_agent(agent, episodes=5, render_mode=None, difficulty=1)
 test_agent(agent, episodes=5, render_mode=None, difficulty=2)
