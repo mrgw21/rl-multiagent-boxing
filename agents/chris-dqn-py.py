@@ -201,7 +201,7 @@ class DQNAgent():
                 print("Epsilon:",self.epsilon)
 
             if episode > 0:
-                log.append(episode-1,episodeReward,loss,self.epsilon)
+                log.append((episode-1,episodeReward,loss,self.epsilon))
                 file = open("log.txt","w")
                 file.write(str(log))
                 file.close()
