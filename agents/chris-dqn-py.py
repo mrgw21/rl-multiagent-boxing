@@ -10,11 +10,19 @@ from itertools import count
 import ale_py
 
 frameStackSize = 4
-replaySize = 1000
-learning_rate = 1e-4
-batchSize = 32
 env = gym.make("ALE/Boxing-v5",frameskip=1) #No frameskip as this is done in the preprocessing wrapper
 noOfActions = env.action_space.n
+
+EPSILON = 1
+GAMMA = 0.99
+C = 10000
+EPISODES = 1500
+BATCH_SIZE = 32
+REPLAY_SIZE = 25000
+LEARNING_RATE = 1e-4
+SAVE_INTERVAL = 100 #Episodes
+
+loss = 0 #For logging loss before we have recorded it
 
 device=torch.device("cuda") #Use GPUs
 
@@ -63,7 +71,7 @@ class DeepQNetwork(nn.Module):
         self.convolutionalLayers.to(device=device) #Make sure models are on the correct device (cpu or gpu)
         self.fullyConnectedLayers.to(device=device)
 
-        self.optimiser = torch.optim.Adam(self.parameters(),lr=learning_rate)
+        self.optimiser = torch.optim.Adam(self.parameters(),lr=LEARNING_RATE)
     
     def forward(self,x):
         CNNOutput = self.convolutionalLayers(x)
@@ -80,7 +88,7 @@ class DQNAgent():
 
         self.updateTargetNet() #Set target net to the same weights as policy net
 
-        self.memory = deque(maxlen=replaySize) #Init replay memory
+        self.memory = deque(maxlen=REPLAY_SIZE) #Init replay memory
 
         self.epsilon = exploration_rate #Set hyperparams
         self.gamma = discount_factor
@@ -99,8 +107,8 @@ class DQNAgent():
         memory = (state,action,reward,next_state,done)
         self.memory.append(memory) #Add state to replay memory.
 
-    def sampleMemory(self,batchSize):
-        sampleBatch = random.sample(self.memory,batchSize)
+    def sampleMemory(self,BATCH_SIZE):
+        sampleBatch = random.sample(self.memory,BATCH_SIZE)
         stateBatch, actionBatch, rewardBatch, nextStateBatch, doneBatch = zip(*sampleBatch)
 
         return stateBatch,actionBatch,rewardBatch,nextStateBatch,doneBatch
@@ -119,7 +127,7 @@ class DQNAgent():
 
     def testNNShape(self):
         state, info = self.env.reset()
-        stateT = toTensor(stateT)
+        stateT = toTensor(state)
         
         output = self.policyNet(stateT) #Run through net
 
@@ -131,9 +139,9 @@ class DQNAgent():
             return False
     
     def runUpdate(self):
-        if len(self.memory) >= batchSize:
+        if len(self.memory) >= BATCH_SIZE:
 
-            states, actions, rewards, next_states, dones = self.sampleMemory(batchSize)
+            states, actions, rewards, next_states, dones = self.sampleMemory(BATCH_SIZE)
             states = torch.stack(states).to(device=device)
             actions = torch.tensor(actions).to(device=device)
             rewards = torch.tensor(rewards).to(device=device)
@@ -148,7 +156,7 @@ class DQNAgent():
             with torch.no_grad():
 
                 doneMask = dones == False #create a mask representing whether a state is done (False) or not done (True)
-                nextQMax = torch.zeros(batchSize,device=device) #empty tensor for max values
+                nextQMax = torch.zeros(BATCH_SIZE,device=device) #empty tensor for max values
                 
                 next_states = next_states[doneMask]
 
@@ -167,6 +175,8 @@ class DQNAgent():
             torch.nn.utils.clip_grad_value_(self.policyNet.parameters(),100)
 
             self.policyNet.optimiser.step()
+        
+            return loss.item()
 
 
             
@@ -174,29 +184,37 @@ class DQNAgent():
     def trainAgent(self,episodes):
 
         totalRewards = []
-        episodeReward : int
+        log = []
+        episodeReward = 0
 
-        for i in range(0,episodes):
+        for episode in range(0,episodes):
 
             state, info = self.env.reset()
             state = toTensor(state)
             
             T = count()
 
-            if totalRewards!= []:
-                print(totalRewards[i-1])
-                file = open("totalRewards.txt","w")
-                file.write(str(totalRewards))
+            print("Episode:",episode)            
+            
+            if self.epsilon > 0.1:
+                self.epsilon *= 0.9955
+                print("Epsilon:",self.epsilon)
+
+            if episode > 0:
+                log.append(episode-1,episodeReward,loss,self.epsilon)
+                file = open("log.txt","w")
+                file.write(str(log))
                 file.close()
-            print("Episode", i)
-            torch.save(self.policyNet.state_dict(), "savedPolicyNet.pt")
-            print("Saved")
+
+
+            if episode % SAVE_INTERVAL == 0:
+                #Save policy network
+                filename = str("savedPolicyNet-" + str(episode) + ".pt")
+                torch.save(self.policyNet.state_dict(), filename)
 
             episodeReward = 0
 
             for i in T:
-
-                #print("Step", i)
 
                 action = self.selectAction(state)
                 
@@ -206,7 +224,6 @@ class DQNAgent():
                 episodeReward += reward
 
                 if done:
-                    totalRewards.append(episodeReward)
                     break
 
                 next_state = toTensor(next_state) #next state to tensor for consistency with state in memory
@@ -217,7 +234,7 @@ class DQNAgent():
 
                 
                 # -- Update values of each sampled transition here --
-                self.runUpdate()
+                loss = self.runUpdate()
                 
                 if self.stepsComplete % self.C == 0:
                     self.updateTargetNet() #Update target net weights every C steps
@@ -227,4 +244,4 @@ class DQNAgent():
 
 
 
-agent = DQNAgent(env,0.2,0.99,10000,2000)
+agent = DQNAgent(env,EPSILON,GAMMA,C,EPISODES)
