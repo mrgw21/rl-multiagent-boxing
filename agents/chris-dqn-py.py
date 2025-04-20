@@ -184,7 +184,6 @@ class DQNAgent():
     def trainAgent(self,episodes):
 
         totalRewards = []
-        log = []
         episodeReward = 0
 
         for episode in range(0,episodes):
@@ -201,9 +200,8 @@ class DQNAgent():
                 print("Epsilon:",self.epsilon)
 
             if episode > 0:
-                log.append((episode-1,episodeReward,loss,self.epsilon))
-                file = open("log.txt","w")
-                file.write(str(log))
+                file = open("log.txt","a")
+                file.write(str((episode-1,episodeReward,loss,self.epsilon))+"\n")
                 file.close()
 
 
