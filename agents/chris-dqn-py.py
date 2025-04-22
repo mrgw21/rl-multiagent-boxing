@@ -15,7 +15,7 @@ noOfActions = env.action_space.n
 
 EPSILON = 1
 GAMMA = 0.99
-C = 1000
+C = 5000
 EPISODES = 1500
 BATCH_SIZE = 32
 REPLAY_SIZE = 100000
