@@ -172,6 +172,7 @@ class DQNAgent():
 
         totalRewards = []
         episodeReward = 0
+        loss = 0 #For logging loss before we have recorded it
 
         for episode in range(0,episodes):
 
@@ -179,7 +180,7 @@ class DQNAgent():
             state = toTensor(state)
             
             T = count()
-            loss = 0 #For logging loss before we have recorded it
+            
 
             print("Episode:",episode)            
             
