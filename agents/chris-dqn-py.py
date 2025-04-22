@@ -15,14 +15,12 @@ noOfActions = env.action_space.n
 
 EPSILON = 1
 GAMMA = 0.99
-C = 10000
+C = 1000
 EPISODES = 1500
 BATCH_SIZE = 32
-REPLAY_SIZE = 25000
+REPLAY_SIZE = 100000
 LEARNING_RATE = 1e-4
 SAVE_INTERVAL = 100 #Episodes
-
-loss = 0 #For logging loss before we have recorded it
 
 device=torch.device("cuda") #Use GPUs
 
@@ -42,26 +40,15 @@ class DeepQNetwork(nn.Module):
         super(DeepQNetwork,self).__init__()
         self.convolutionalLayers = nn.Sequential(
             # First conv layer: input channels = 4 (frame stack), output = 32
-            nn.Conv2d(frameStackSize, 32, kernel_size=3, padding=1), nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.Conv2d(4, 32, 8, 4), nn.ReLU(),
             # Second conv layer: 32 -> 64 filters
-            nn.Conv2d(32, 64, kernel_size=3, padding=1), nn.ReLU(),
-            nn.MaxPool2d(2),
-            # Third conv layer: 64 -> 128 filters
-            nn.Conv2d(64, 128, kernel_size=3, padding=1), nn.ReLU(),
-            nn.MaxPool2d(2),
-            # Fourth conv layer: 128 -> 128 filters
-            nn.Conv2d(128, 128, kernel_size=3, padding=1), nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, 4, 2), nn.ReLU(),
+            nn.Conv2d(64, 64, 3, 1), nn.ReLU()
         )
 
         self.fullyConnectedLayers = nn.Sequential(
             nn.Flatten(),
-            # Fully connected layer to interpret features
-            nn.Linear(128 * 5 * 5, 512), # that final output of the CNN is 128 feature maps of size 5x5
-            nn.ReLU(),
-            nn.Dropout(0.5),  # Dropout added - avoids overfitting
-            # output logits for each action (18 actions)
+            nn.Linear(64 * 7 * 7, 512), nn.ReLU(),
             nn.Linear(512, noOfActions)
         )
 
@@ -85,7 +72,7 @@ class DQNAgent():
 
         self.policyNet = DeepQNetwork() #Init  policy and target net
         self.targetNet = DeepQNetwork()
-
+        self.targetNet.eval() #Target isn't trained
         self.updateTargetNet() #Set target net to the same weights as policy net
 
         self.memory = deque(maxlen=REPLAY_SIZE) #Init replay memory
@@ -125,26 +112,26 @@ class DQNAgent():
         else:
             return torch.tensor([[random.randint(0,noOfActions-1)]]).to(device=device)
 
-    def testNNShape(self):
-        state, info = self.env.reset()
-        stateT = toTensor(state)
+    # def testNNShape(self):
+    #     state, info = self.env.reset()
+    #     stateT = toTensor(state)
         
-        output = self.policyNet(stateT) #Run through net
+    #     output = self.policyNet(stateT) #Run through net
 
-        if output.squeeze(0).shape == torch.Size([noOfActions]):
-            print("NN outputs correct shape for 18 actions")
-            return True
-        else:
-            print("Bad NN output!")
-            return False
+    #     if output.squeeze(0).shape == torch.Size([noOfActions]):
+    #         print("NN outputs correct shape for 18 actions")
+    #         return True
+    #     else:
+    #         print("Bad NN output!")
+    #         return False
     
     def runUpdate(self):
-        if len(self.memory) >= BATCH_SIZE:
+        if len(self.memory) >= 10000:
 
             states, actions, rewards, next_states, dones = self.sampleMemory(BATCH_SIZE)
             states = torch.stack(states).to(device=device)
             actions = torch.tensor(actions).to(device=device)
-            rewards = torch.tensor(rewards).to(device=device)
+            rewards = torch.tensor(rewards,dtype=torch.float32).to(device=device)
             next_states = torch.stack(next_states).to(device=device)
             dones = torch.tensor(dones).to(device=device)
             
@@ -172,7 +159,7 @@ class DQNAgent():
             self.policyNet.optimiser.zero_grad()
             loss.backward()
 
-            torch.nn.utils.clip_grad_value_(self.policyNet.parameters(),100)
+            torch.nn.utils.clip_grad_value_(self.policyNet.parameters(),10)
 
             self.policyNet.optimiser.step()
         
@@ -192,11 +179,12 @@ class DQNAgent():
             state = toTensor(state)
             
             T = count()
+            loss = 0 #For logging loss before we have recorded it
 
             print("Episode:",episode)            
             
             if self.epsilon > 0.1:
-                self.epsilon *= 0.9955
+                self.epsilon *= 0.9985
                 print("Epsilon:",self.epsilon)
 
             if episode > 0:
@@ -206,9 +194,16 @@ class DQNAgent():
 
 
             if episode % SAVE_INTERVAL == 0:
+
+                savepoint = {
+                    'episode': episode,
+                    'model': self.policyNet.state_dict(),
+                    'optimiser': self.policyNet.optimiser.state_dict()
+                }
+
                 #Save policy network
-                filename = str("savedPolicyNet-" + str(episode) + ".pt")
-                torch.save(self.policyNet.state_dict(), filename)
+                filename = str("savedPolicyNet" + str(episode) + ".pth")
+                torch.save(savepoint, filename)
 
             episodeReward = 0
 
@@ -216,19 +211,20 @@ class DQNAgent():
 
                 action = self.selectAction(state)
                 
-                next_state, reward, terminal, truncated, info = self.env.step(action)
-
+                next_state, reward, terminal, truncated, info = self.env.step(action.item())
+                
                 done = terminal or truncated
+                
                 episodeReward += reward
 
-                if done:
-                    break
-
                 next_state = toTensor(next_state) #next state to tensor for consistency with state in memory
-
+                                    
                 self.saveMemory(state,action,reward,next_state,done) #Store transition s,a,r,s,d
 
                 state = next_state
+                
+                if done:
+                    break
 
                 
                 # -- Update values of each sampled transition here --
