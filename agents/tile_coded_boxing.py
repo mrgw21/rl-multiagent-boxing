@@ -1,17 +1,19 @@
 import numpy as np
 from collections import deque
-from pettingzoo.atari import boxing_v2
 import random
-from tile_coding import TileCoder
+import gymnasium as gym
+from collections import deque
+import ale_py
 from abc import ABC, abstractmethod
-from agent_utils import save_agent, load_agent, test_agent, compare_agents, plot_learning_curve
+from utils.tile_coding import TileCoder
+from utils.agent_utils import save_agent, load_agent, test_agent, plot_rewards
+from utils.PER import store_experience, prioritised_sample, update_priority_order
 
 class Agent:
     def __init__(self):
-        self.env = boxing_v2.parallel_env(obs_type='ram', render_mode=None)
-        self.ID = "first_0"
+        self.env = gym.make("ALE/Boxing-ram-v5", obs_type="ram", render_mode=None)
         self.env.reset()
-        self.actions = list(range(self.env.action_space(self.ID).n))
+        self.actions = [i for i in range(18)]
         self.num_actions = len(self.actions)
 
         # Hyperparameters
@@ -24,8 +26,11 @@ class Agent:
         self.min_epsilon = 0.01
 
         # Parameters for experience replay
-        self.experiences = deque(maxlen=1000)
-        self.sample_size = 32
+        self.replay_buffer = deque(maxlen=1000)
+        self.priorities = deque(maxlen=1000)
+        self.exp_alpha = 0.6  # Priority exponent
+        self.exp_beta = 0.4   # Importance sampling exponent
+        self.batch_size = 32
 
         self.step_update = 100 # update every 100 steps
 
@@ -72,44 +77,48 @@ class Agent:
             # Gym envs return observations and info - we only need observations
             observations, _ = self.env.reset()
             # Extract the state feature from above using tile code
-            state_features = self.extract_state_feature(observations[self.ID])
+            state_features = self.feature_extraction(observations)
             action = self.policy(state_features) # First action based on policy
 
             # Set initial w vars to track rewards + game over
             total_reward = 0
             episode_steps = 0
-            finished = False
+            terminal = False
+            truncated = False
 
             # In this env, the game is over if terminal or truncated become true
-            while not finished:
-                # Check if target network update is needed
+            while not (terminal or truncated):
+                
                 if episode_steps % self.step_update == 0:
                     self.update_target_networks()
-                
-                
-                # Create a dictionary of actions for all agents
-                actions = {agent: (self.policy(self.extract_state_feature(observations[agent]))
-                                if agent == self.ID else random.choice(self.actions))
-                        for agent in self.env.agents}
-                
 
-                next_observations, rewards, terminal, truncated, _ = self.env.step(actions) # Same again for info (_)
-                
-                next_state_features = self.extract_state_feature(next_observations[self.ID])
-                reward = rewards[self.ID]
-                finished = terminal[self.ID] or truncated[self.ID]
-
+                next_state, reward, terminal, truncated, _ = self.env.step(action) # Same again for info (_)
+                next_state_features = self.feature_extraction(next_state)
                 next_action = self.policy(next_state_features)
+
+                # Calculate the TD error based on current weights 
+                q_vals = [np.dot(self.theta1, self.get_state_action_feature(state_features, action)) for action in self.actions]
+                current_q = np.dot(self.theta1, self.get_state_action_feature(state_features, action))
+                if (terminal or truncated):
+                    target = reward
+                else:
+                    target = reward + self.gamma * max(q_vals)
+                td_error = target - current_q
+            
                 # Store every experience for replay
-                experience = (state_features, action, reward, next_state_features, finished)
-                self.experiences.append(experience)
+                experience = (state_features, action, reward, next_state_features, terminal or truncated)
+                store_experience(self, experience, abs(td_error), cache=False)
+
 
                 # If there are enough experiences, use a batch from the array to update the Q tables
-                if len(self.experiences) >= self.sample_size:
-                    random_sample = random.sample(self.experiences, self.sample_size) # Randomly select sample_size experiences
+                if len(self.replay_buffer) >= self.batch_size:
+                    sample_batch, indices, weights = prioritised_sample(self)
                     # For each experience in the randomly selected samples
                 
-                    for sample_state, sample_action, sample_reward, sample_next_state, sample_finished in random_sample:
+                    td_errors = []
+                    
+                    for sample_experience in sample_batch:
+                        sample_state, sample_action, sample_reward, sample_next_state, sample_terminal = sample_experience
                         # Double Q-learning - randomly chooses between updating one function or the other
                         if np.random.rand() < 0.5:
 
@@ -121,10 +130,10 @@ class Agent:
                             best_action = self.actions[np.argmax(q_vals)]
 
                             # Use other set of weights (theta 2) to calculate target value - used to update theta 1
-                            if sample_finished: 
+                            if sample_terminal: 
                                 target = sample_reward 
                             else:
-                                target = sample_reward + self.gamma * np.dot(self.theta2_target, self.get_state_action_feature(sample_next_state, best_action))
+                                target = sample_reward + self.gamma * np.dot(self.theta2, self.get_state_action_feature(sample_next_state, best_action))
                             
                             # Calculate the current q value for theta 1
                             q_current = np.dot(self.theta1, self.get_state_action_feature(sample_state, sample_action))
@@ -132,6 +141,7 @@ class Agent:
                             td_error = target - q_current
                             # Update theta 1 using this error
                             self.theta1 += self.alpha * td_error * self.get_state_action_feature(sample_state, sample_action)
+                            td_errors.append(td_error)
                         else:
                             # Use theta2 to identify the action with the highest q value
                             q_vals = []
@@ -141,18 +151,21 @@ class Agent:
                             best_action = self.actions[np.argmax(q_vals)]
 
                             # Use other set of weights (theta 1) to calculate target value - used to update theta 2
-                            if sample_finished: 
+                            if sample_terminal: 
                                 target = sample_reward + 0
                             else:
-                                target = sample_reward + self.gamma * np.dot(self.theta1_target, self.get_state_action_feature(sample_next_state, best_action))
+                                target = sample_reward + self.gamma * np.dot(self.theta1, self.get_state_action_feature(sample_next_state, best_action))
 
                             # Calculate the current q value for theta 2
-                            q_current = np.dot(self.theta2, self.get_state_action_feature(sample_state, sample_action))
+                            q_current = np.dot(self.theta2,  self.get_state_action_feature(sample_state, sample_action))
                             # Error here is difference between target from theta 1 and current from theta 2
                             td_error = target - q_current
                             # Update theta 2 using this error
                             self.theta2 += self.alpha * td_error * self.get_state_action_feature(sample_state, sample_action)
+                            td_errors.append(td_error)
+                    
 
+                    update_priority_order(self, indices, td_errors)
 
                 # Shift current state and action along + add reward to total reward
                 state_features = next_state_features
@@ -168,12 +181,12 @@ class Agent:
                 avg_reward = sum(episode_rewards[-10:]) / 10
                 print(f"Episode {episode + 1}, Average Reward (last 10): {avg_reward:.2f}, Epsilon: {self.epsilon:.3f}")
         
-        plot_learning_curve(episode_rewards)
+        plot_rewards(episode_rewards)
         return episode_rewards
     
         
     @abstractmethod  
-    def extract_state_features(self, ram_data):
+    def feature_extraction(self, state):
         pass
 
 
@@ -200,7 +213,7 @@ class TileCodedAgent(Agent):
         self.theta1_target = np.copy(self.theta1)
         self.theta2_target = np.copy(self.theta2)
     
-    def extract_state_feature(self, ram_data):
+    def feature_extraction(self, ram_data):
         """Gets the player positions from the ram data"""
         player_x = int(ram_data[32])
         player_y = int(ram_data[34])
@@ -228,7 +241,7 @@ class StandardAgent(Agent):
         self.theta2_target = np.copy(self.theta2)
 
 
-    def extract_state_feature(self, ram_data):
+    def feature_extraction(self, ram_data):
         """Gets the player positions from the ram data"""
         player_x = int(ram_data[32])
         player_y = int(ram_data[34])
@@ -240,16 +253,17 @@ class StandardAgent(Agent):
         return state
 
 
-standard_agent = StandardAgent()
-tile_agent = TileCodedAgent()
-standard_agent, tile_agent = compare_agents(standard_agent, tile_agent, 200)
-save_agent(standard_agent, path = 'saved_agents/standard_agent.pkl')
-save_agent(tile_agent, path = 'saved_agents/tile_agent.pkl')
-loaded_s_agent = load_agent('saved_agents/standard_agent.pkl')
-loaded_t_agent = load_agent('saved_agents/tile_agent.pkl')
+if __name__ == "__main__":
+    # Create + Train agents
+    standard_agent = StandardAgent()
+    tile_agent = TileCodedAgent()
+    standard_agent.double_learn(500)
+    tile_agent.double_learn(500)
 
+    # Save agents
+    save_agent(standard_agent, 'standard_box_agent')
+    save_agent(tile_agent,'tile_box_agent')
 
-test_agent(standard_agent)
-test_agent(loaded_s_agent)
-test_agent(tile_agent)
-test_agent(loaded_t_agent)
+    # Test agents
+    test_agent(standard_agent)
+    test_agent(tile_agent)

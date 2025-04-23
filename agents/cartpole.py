@@ -6,8 +6,7 @@ import random
 from tile_coding import TileCoder
 import pickle
 from abc import ABC, abstractmethod
-from agent_utils import save_agent, load_agent, test_agent, compare_agents, plot_learning_curve
-from prioritised_replay import PrioritisedReplay
+from agent_utils import save_agent, load_agent, test_agent, compare_agents, plot_rewards
 
 class Agent:
     def __init__(self):
@@ -17,27 +16,19 @@ class Agent:
         self.num_actions = len(self.actions)
 
         # Hyperparameters
-        self.alpha = 0.01
+        self.alpha = 0.05
         self.alpha_decay = 0.995
         self.min_alpha = 0.001
         self.epsilon = 0.15
         self.gamma = 0.9
-        self.epsilon_decay = 0.999
+        self.epsilon_decay = 0.995
         self.min_epsilon = 0.01
+        self.step_update = 100 # update target networks every 100 steps
 
         # Parameters for experience replay
-        self.prioritised_replay = PrioritisedReplay(max_len=1000)
+        self.experiences = deque(maxlen=1000)
         self.sample_size = 32
-        # self.experiences = deque(maxlen=1000)
 
-        #Place holders for weights of both networks
-        self.theta1 = None
-        self.theta2 = None
-
-        # Add additional target networks to help stabilise training
-        self.theta1_target = np.copy(self.theta1)
-        self.theta2_target = np.copy(self.theta2)
-        self.step_update = 100 # update every 100 steps
 
     def update_target_networks(self):
         """Update target weights with current weights"""
@@ -101,26 +92,16 @@ class Agent:
                 next_state_features = self.extract_state_feature(next_state)
                 next_action = self.policy(next_state_features)
 
-                # Calculate the TD error based on current weights 
-                q_vals = [np.dot(self.theta1, self.get_state_action_feature(state_features, action)) for action in self.actions]
-                current_q = np.dot(self.theta1, self.get_state_action_feature(state_features, action))
-                if (terminal or truncated):
-                    target = reward
-                else:
-                    target = reward + self.gamma * max(q_vals)
-                td_error = target - current_q
-            
                 # Store every experience for replay
                 experience = (state_features, action, reward, next_state_features, terminal or truncated)
-                self.prioritised_replay.add_experience(experience, abs(td_error)) # Manually set TD error for first step 
+                self.experiences.append(experience)
 
                 # If there are enough experiences, use a batch from the array to update the Q tables
-                if len(self.prioritised_replay.replay_buffer) >= self.sample_size:
-                    random_sample = self.prioritised_replay.get_sample(self.sample_size)
+                if len(self.experiences) >= self.sample_size:
+                    random_sample = random.sample(self.experiences, self.sample_size) # Randomly select sample_size experiences
                     # For each experience in the randomly selected samples
                 
-                    for sample_experience in random_sample:
-                        sample_state, sample_action, sample_reward, sample_next_state, sample_terminal = sample_experience["Experience"]
+                    for sample_state, sample_action, sample_reward, sample_next_state, sample_terminal in random_sample:
                         # Double Q-learning - randomly chooses between updating one function or the other
                         if np.random.rand() < 0.5:
 
@@ -135,7 +116,7 @@ class Agent:
                             if sample_terminal: 
                                 target = sample_reward 
                             else:
-                                target = sample_reward + self.gamma * np.dot(self.theta2, self.get_state_action_feature(sample_next_state, best_action))
+                                target = sample_reward + self.gamma * np.dot(self.theta2_target, self.get_state_action_feature(sample_next_state, best_action))
                             
                             # Calculate the current q value for theta 1
                             q_current = np.dot(self.theta1, self.get_state_action_feature(sample_state, sample_action))
@@ -155,7 +136,7 @@ class Agent:
                             if sample_terminal: 
                                 target = sample_reward + 0
                             else:
-                                target = sample_reward + self.gamma * np.dot(self.theta1, self.get_state_action_feature(sample_next_state, best_action))
+                                target = sample_reward + self.gamma * np.dot(self.theta1_target, self.get_state_action_feature(sample_next_state, best_action))
 
                             # Calculate the current q value for theta 2
                             q_current = np.dot(self.theta2,  self.get_state_action_feature(sample_state, sample_action))
@@ -164,7 +145,6 @@ class Agent:
                             # Update theta 2 using this error
                             self.theta2 += self.alpha * td_error * self.get_state_action_feature(sample_state, sample_action)
 
-                    self.prioritised_replay.update_existing_entry(sample_experience["Experience"], abs(td_error)) # Have to update with absolute value for correct ordering
 
                 # Shift current state and action along + add reward to total reward
                 state_features = next_state_features
@@ -180,7 +160,7 @@ class Agent:
                 avg_reward = sum(episode_rewards[-10:]) / 10
                 print(f"Episode {episode + 1}, Average Reward (last 10): {avg_reward:.2f}, Epsilon: {self.epsilon:.3f}")
         
-        plot_learning_curve(episode_rewards)
+        plot_rewards(episode_rewards)
         return episode_rewards
     
         
@@ -207,6 +187,10 @@ class TileCodedAgent(Agent):
         # Thetas are weights for double learning - will be a separate vector for each action
         self.theta1 = np.zeros(self.feature_size * self.num_actions)
         self.theta2 = np.zeros(self.feature_size * self.num_actions)
+
+        # Add additional target networks to help stabilise training
+        self.theta1_target = np.copy(self.theta1)
+        self.theta2_target = np.copy(self.theta2)
     
     
     def extract_state_feature(self, state):
@@ -226,6 +210,10 @@ class StandardAgent(Agent):
         self.theta1 = np.zeros(self.feature_size * self.num_actions)
         self.theta2 = np.zeros(self.feature_size * self.num_actions)
 
+        # Add additional target networks to help stabilise training
+        self.theta1_target = np.copy(self.theta1)
+        self.theta2_target = np.copy(self.theta2)
+
 
     def extract_state_feature(self, state):
         """No tile coding so just return the state as a numpy array"""
@@ -235,11 +223,11 @@ class StandardAgent(Agent):
 
 standard_agent = StandardAgent()
 tile_agent = TileCodedAgent()
-standard_agent, tile_agent = compare_agents(standard_agent, tile_agent, 1000)
-save_agent(standard_agent, path = 'saved_agents/standard_agent.pkl')
-save_agent(tile_agent, path = 'saved_agents/tile_agent.pkl')
-loaded_s_agent = load_agent('saved_agents/standard_agent.pkl')
-loaded_t_agent = load_agent('saved_agents/tile_agent.pkl')
+standard_agent, tile_agent = compare_agents(standard_agent, tile_agent, 200)
+save_agent(standard_agent, "standard_agent")
+save_agent(tile_agent, "tile_agent")
+loaded_s_agent = load_agent("standard_agent")
+loaded_t_agent = load_agent("tile_agent")
 
 
 test_agent(standard_agent)

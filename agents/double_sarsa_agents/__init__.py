@@ -1,0 +1,7 @@
+from .sarsa_double import Base_Double_Sarsa_Agent
+from .true_online_sarsa import TrueOnlineSarsa
+from .simple_double_sarsa import SimpleDoubleSarsa
+from .no_experience_replay import DoubleSarsaNoExperience
+from .random_experience import DoubleSarsaRandomExperience
+from .prioritised_experience import DoubleSarsaPrioritisedExperience
+from .prioritised_experience_cache import DoubleSarsaPriortisedExperienceWithCache

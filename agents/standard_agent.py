@@ -8,7 +8,7 @@ import time
 
 import gymnasium as gym
 import random
-from agent_utils import load_agent, save_agent, plot_learning_curve, test_agent
+from utils.agent_utils import load_agent, save_agent, plot_rewards, test_agent
 
 class Standard_Agent:
     '''
@@ -160,6 +160,6 @@ agent = Standard_Agent("Reduced_Feature_Test_16-04-2025", reduced_feature=True)
 weights, returns = agent.single_learn_SARSA()
 print(returns[-100:])
 
-save_agent(agent, "agents/saved_agents/standard_reduced.pkl")
-loaded_agent = load_agent("agents/saved_agents/standard_reduced.pkl")
+save_agent(agent, "standard_reduced")
+loaded_agent = load_agent("standard_reduced")
 test_agent(loaded_agent)
