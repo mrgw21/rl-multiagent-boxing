@@ -229,7 +229,7 @@ class DQNAgent():
                 state = next_state
                 
                 if done:
-                    self.policyNet.eval()
+                    self.policyNet.eval() #not sure it really makes sense to have this here. just messing with things to see if something works
                     break
 
                 
