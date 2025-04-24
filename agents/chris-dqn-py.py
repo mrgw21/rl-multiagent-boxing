@@ -175,7 +175,7 @@ class DQNAgent():
 
         totalRewards = []
         episodeReward = 0
-        loss = 0 #For logging loss before we have recorded it
+        episodeLoss = 0
 
         for episode in range(0,episodes):
 
@@ -193,7 +193,7 @@ class DQNAgent():
 
             if episode > 0:
                 file = open("log.txt","a")
-                file.write(str((episode-1,episodeReward,loss,self.epsilon))+"\n")
+                file.write(str((episode-1,episodeReward,episodeLoss,self.epsilon))+"\n")
                 file.close()
 
 
@@ -210,6 +210,7 @@ class DQNAgent():
                 torch.save(savepoint, filename)
 
             episodeReward = 0
+            episodeLoss = 0
 
             for i in T:
 
@@ -235,6 +236,7 @@ class DQNAgent():
                 # -- Update values of each sampled transition here --
                 if self.stepsComplete > WARMUP:
                     loss = self.runUpdate()
+                    episodeLoss += loss
                 
                 if self.stepsComplete % self.C == 0:
                     self.updateTargetNet() #Update target net weights every C steps
