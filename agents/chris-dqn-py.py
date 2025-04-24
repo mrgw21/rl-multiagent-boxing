@@ -16,15 +16,16 @@ noOfActions = env.action_space.n
 EPSILON = 1
 GAMMA = 0.99
 C = 5000
-EPISODES = 1500
+EPISODES = 2000
 BATCH_SIZE = 32
-REPLAY_SIZE = 100000
+REPLAY_SIZE = 10000
 LEARNING_RATE = 1e-4
 SAVE_INTERVAL = 100 #Episodes
+WARMUP = 10000
 
 device=torch.device("cuda") #Use GPUs
 
-lossFunction = nn.HuberLoss() #Loss function for nn optimisation
+lossFunction = nn.SmoothL1Loss() #Loss function for nn optimisation
 
 def preProcess(env):
     env = AtariPreprocessing(env,frame_skip=4,screen_size=84,grayscale_obs=True) #Resize to 84x84 and greyscale
@@ -126,7 +127,9 @@ class DQNAgent():
     #         return False
     
     def runUpdate(self):
-        if len(self.memory) >= 10000:
+        if len(self.memory) >= BATCH_SIZE:
+            
+            self.policyNet.train()
 
             states, actions, rewards, next_states, dones = self.sampleMemory(BATCH_SIZE)
             states = torch.stack(states).to(device=device)
@@ -225,11 +228,13 @@ class DQNAgent():
                 state = next_state
                 
                 if done:
+                    self.policyNet.eval()
                     break
 
                 
                 # -- Update values of each sampled transition here --
-                loss = self.runUpdate()
+                if self.stepsComplete > WARMUP:
+                    loss = self.runUpdate()
                 
                 if self.stepsComplete % self.C == 0:
                     self.updateTargetNet() #Update target net weights every C steps
