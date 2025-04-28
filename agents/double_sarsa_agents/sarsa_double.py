@@ -34,6 +34,8 @@ class Base_Double_Sarsa_Agent:
         elif self.feature_type == "lsh":
             self.lsh = LSH()
             self.feature_length = self.lsh.num_rand_bit_vecs * self.lsh.hash_table_size
+        elif self.feature_type == "semi_reduced_ram":
+            self.feature_length = 1052
         else:
             raise ValueError("Feature Type not recognised")
         self.normalise_features = True
@@ -98,10 +100,37 @@ class Base_Double_Sarsa_Agent:
         elif self.feature_type == "lsh":
             screen = self.env.render()
             return self.lsh.feature_extraction_lsh(screen)
+        elif self.feature_type == "semi_reduced_ram":
+            return self.feature_extraction_semi_ram(observations)
         else:
             raise ValueError("Feature Type not recognised") # Won't actually be called 
 
 
+    def feature_extraction_semi_ram(self, observations):
+        player_x = int(observations[32])
+        player_y = int(observations[34])
+        opponent_x = int(observations[33])
+        opponent_y = int(observations[35])
+        dx = abs(opponent_x - player_x)
+        dy = abs(opponent_y - player_y)
+        manhattan_distance = dx + dy
+
+        x_dist = np.unpackbits(np.array([dx], dtype=np.uint8))
+        y_dist = np.unpackbits(np.array([dy], dtype=np.uint8))  
+        man_dist = np.unpackbits(np.array([manhattan_distance], dtype = np.uint8))
+
+        logic_bits = np.array([
+                                player_x > opponent_x,
+                                player_y > opponent_y,
+                                manhattan_distance < 10,
+                                manhattan_distance < 20
+                            ], dtype=np.uint8)
+
+        binary_observations = np.unpackbits(observations)
+
+        features = np.concatenate([binary_observations, x_dist, y_dist, man_dist, logic_bits])
+        return features
+    
     #Function designed to extract the list of features from the atari observation based on the type 'ram'
     def feature_extraction_ram(self, observations):
         #Initial observations, which are stored as a list of 128 values, ranging from 0-256 are 'unpacked' to bits.

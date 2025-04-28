@@ -42,11 +42,29 @@ import pickle
 #     pickle.dump(loaded_agent, f)
 
 # Only use best = True if it's in the best_agents folder 
-agent = load_agent("PER_with_cache_agent_22_04_rank1", best = True)
-test_agent(agent, episodes=5, render_mode=None, difficulty=0)
-test_agent(agent, episodes=5, render_mode=None, difficulty=1)
-test_agent(agent, episodes=5, render_mode=None, difficulty=2)
-test_agent(agent, episodes=5, render_mode=None, difficulty=3)
+# agent = load_agent("best_agent_semi_prioritised_cache_23_04", best = False)
+# test_agent(agent, episodes=5, render_mode=None, difficulty=0)
+# test_agent(agent, episodes=5, render_mode=None, difficulty=1)
+# test_agent(agent, episodes=5, render_mode=None, difficulty=2)
+# test_agent(agent, episodes=5, render_mode=None, difficulty=3)
+
+difficulties = [0, 1, 2, 3]
+rewards_per_difficulty = {}
+
+agent = load_agent("23_04_04_cache_2", best=False)
+
+for difficulty in difficulties:
+    total_reward = 0
+    episodes = 500
+
+    rewards = test_agent(agent, episodes=500, render_mode=None, difficulty=difficulty)
+    rewards = np.array(rewards)
+    average_reward = np.mean(rewards)
+
+    rewards_per_difficulty[difficulty] = average_reward
+
+for diff, avg in rewards_per_difficulty.items():
+    print(f"Difficulty {diff}: Average Reward over 500 episodes = {avg:.2f}")
 
 
 

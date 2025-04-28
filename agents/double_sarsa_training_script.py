@@ -40,9 +40,9 @@ from double_sarsa_agents import (
 # Example of how to run training
 # Only run training if we are running this script - needed when importing module from another script
 if __name__ == "__main__":
-    agent = DoubleSarsaPriortisedExperienceWithCache("test_delete_me", render=None, feature_type="reduced_ram") 
+    agent = DoubleSarsaPriortisedExperienceWithCache("23_04_04_cache_2", render=None, feature_type="semi_reduced_ram") 
     print(agent.name)
-    rewards = agent.train(num_episodes=100) 
+    rewards = agent.train(num_episodes=15000, bot_difficulty=1) 
 
     save_agent(agent, agent.name)
     loaded_agent = load_agent(agent.name)
