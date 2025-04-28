@@ -20,7 +20,7 @@ def gather_data(actor = None, critic = None):
     
     agent = ppo.PPOAgent(actor, critic)
         
-    for x in range(100):
+    for x in range(500):
         done = False
         state = env.reset()
         cumulative_reward = 0
