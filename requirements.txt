@@ -1,5 +1,6 @@
 # === Core Deep Learning ===
 torch==2.0.1
+torchvision
 
 # === Atari RL Environment ===
 gymnasium==1.1.1
@@ -18,6 +19,7 @@ tqdm
 cloudpickle
 requests
 click
+pandas
 
 # === Python 3.10+ Compatibility ===
 typing_extensions
