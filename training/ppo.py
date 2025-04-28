@@ -187,13 +187,13 @@ class PPOAgent:
         for _ in range(epochs):
             indices = torch.randperm(dataset_size)
 
-            for start in range(0, dataset_size, batch_size):
+            for start_idx in range(0, dataset_size, batch_size):
                 
-                end = start + batch_size
-                if end > dataset_size:
-                    end = dataset_size
+                end_idx = start_idx + batch_size
+                if end_idx > dataset_size:
+                    end_idx = dataset_size - 1
                 
-                batch_idx = indices[start:end].to(torch.long)
+                batch_idx = indices[start_idx:end_idx].to(torch.long)
                 
                 batch_states = states[batch_idx]
                 batch_actions = actions[batch_idx]
