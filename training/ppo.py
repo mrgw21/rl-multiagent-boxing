@@ -27,7 +27,7 @@ import torch.nn.functional as func
 
 class PPOAgent:
     
-    def __init__ (self):
+    def __init__ (self, actor = None, critic = None):
         
         # Hyperparameters
         self.gamma = 0.99
@@ -38,6 +38,12 @@ class PPOAgent:
         # Actor and Critic Neural Nets
         self.actor = neural_ne.Actor(18)
         self.critic = neural_ne.Critic()
+        
+        if actor is None:
+            self.actor.load_model(actor)
+            
+        if critic is None:
+            self.critic.load_model(critic)
         
         self.information = {
                 'state': [],
@@ -225,7 +231,6 @@ class PPOAgent:
                 
         self.reset_information()
 
-    
     """Functions to retrieve information from the object"""
     
     def access_cumulative_reward (self):

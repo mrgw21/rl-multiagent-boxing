@@ -58,6 +58,10 @@ class Actor(nn.Module):
     
     def save_model (self, path = "training/models/actor_model.pth"):
         torch.save(self.state_dict(), path)
+    
+    def load_model (self, pathname = "training/models/actor_model.pth"):
+        state_dict = torch.load(pathname, weights_only = True)
+        self.load_state_dict(state_dict)
 
 
 # critic network outputs scalar value for state
@@ -86,3 +90,7 @@ class Critic(nn.Module):
     
     def save_model (self, path = "training/models/critic_model.pth"):
         torch.save(self.state_dict(), path)
+    
+    def load_model (self, pathname = "training/models/critic_model.pth"):
+        state_dict = torch.load(pathname, weights_only = True)
+        self.load_state_dict(state_dict)
