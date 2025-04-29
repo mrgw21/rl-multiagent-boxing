@@ -123,7 +123,7 @@ class PPOAgent:
         state = state.unsqueeze(0)
         return state.to(device)
 
-    def learn(self, batch_size=32, epochs=4):
+    def learn(self, batch_size=128, epochs=4):
         """Learn from collected data with minibatch SGD."""
         states = torch.stack(self.information['state']).to(device).squeeze(1)
         actions = torch.stack(self.information['action']).to(device)
