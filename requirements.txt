@@ -28,3 +28,4 @@ importlib_resources
 # === (Optional) Jupyter/IPython (if using notebooks) ===
 # ipykernel
 # notebook
+openpyxl

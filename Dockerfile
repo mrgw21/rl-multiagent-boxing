@@ -19,7 +19,7 @@ RUN python3.8 -m pip install --upgrade pip && \
     python3.8 -m pip install opencv-python-headless
 
 # --- Install Atari ROMs (AutoROM is installed by requirements) ---
-RUN AutoROM --accept-license
+RUN HOME=/root AutoROM --accept-license
 
 # --- Copy rest of codebase ---
 COPY . .

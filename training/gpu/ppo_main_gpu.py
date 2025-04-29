@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 import torch
 import torchvision.transforms as T
-import ppo
+import ppo_gpu
 
-from ppo import PPOAgent
-from neural_ne import device
+from ppo_gpu import PPOAgent
+from neural_ne_gpu import device
 
 # --- Print CUDA info just once at startup ---
 print("CUDA_VISIBLE_DEVICES =", os.environ.get("CUDA_VISIBLE_DEVICES"))
@@ -60,11 +60,11 @@ def gather_data(actor=None, critic=None, target_episodes=500):
 
         agent.learn()
 
-        if episode_num % 5 == 0:
-            agent.actor.save_model("/mnt/saved_models/actor_ep{episode_num}.pth")
-            agent.critic.save_model("/mnt/saved_models/critic_ep{episode_num}.pth")
-            output_to_excel(reward_tracker, "training_rewards_{episode_num}.xlsx")
-            output_to_excel(reward_tracker, "/mnt/saved_metrics/training_rewards_{episode_num}.xlsx")
+        if episode_num % 100 == 0:
+            agent.actor.save_model(f"/mnt/saved_models/actor_ep{episode_num}.pth")
+            agent.critic.save_model(f"/mnt/saved_models/critic_ep{episode_num}.pth")
+            output_to_excel(reward_tracker, f"training_rewards_{episode_num}.xlsx")
+            output_to_excel(reward_tracker, f"/mnt/saved_metrics/training_rewards_{episode_num}.xlsx")
             print(f"Saved models at episode {episode_num}")
 
     agent.actor.save_model("/mnt/saved_models/actor_final.pth")
@@ -97,7 +97,7 @@ def evaluate(actor_path, critic_path):
     output_to_excel(reward_tracker, "eval_rewards.xlsx")
 
 def output_to_excel(info: list, pathname='rewards.xlsx'):
-    df = pd.DataFrame(info, columns=['Values'])
+    df = pd.DataFrame(info, columns=['Rewards'])
     df.to_excel(pathname, index=False, sheet_name='sheet1')
 
 if __name__ == "__main__":

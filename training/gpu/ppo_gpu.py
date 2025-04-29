@@ -17,7 +17,7 @@ from torch.distributions.categorical import Categorical
 import torch.nn.functional as func
 
 # --- Import device from neural_ne for consistency everywhere ---
-from neural_ne import Actor, Critic, device
+from neural_ne_gpu import Actor, Critic, device
 
 class PPOAgent:
     def __init__(self, actor=None, critic=None):
