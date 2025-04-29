@@ -44,7 +44,7 @@ class Actor(nn.Module):
         self.features = CNNFeatureExtractor()
         self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(128 * 5 * 5, 512),  # <<< Fixed here!
+            nn.Linear(128 * 5 * 5, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(512, n_actions)
@@ -74,7 +74,7 @@ class Critic(nn.Module):
         self.features = CNNFeatureExtractor()
         self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(128 * 5 * 5, 512),  # <<< Fixed here too!
+            nn.Linear(128 * 5 * 5, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(512, 1)

@@ -25,7 +25,7 @@ to_grayscale = T.Grayscale(num_output_channels=1)
 
 import os
 
-def gather_data(actor=None, critic=None, target_episodes=500):
+def gather_data(actor=None, critic=None, target_episodes=2000):
     """Gathers data for multiple episodes, learning after each episode."""
     cumulative_reward = 0
     reward_tracker = []
