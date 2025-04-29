@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from torch.distributions.categorical import Categorical
 import torch.nn.functional as func
+import math
 
 # --- Import device from neural_ne for consistency everywhere ---
 from neural_ne_gpu import Actor, Critic, device
@@ -85,7 +86,7 @@ class PPOAgent:
         return returns, adv
 
     def clipped_surrogate_loss(self, advantage, old_probability, new_probability):
-        ratio = new_probability / old_probability
+        ratio = torch.exp(new_probability - old_probability)
         unclipped_loss = ratio * advantage
         clipped_loss = torch.clamp(ratio, 1 - self.clip_epsi, 1 + self.clip_epsi) * advantage
         return torch.minimum(unclipped_loss, clipped_loss).mean()
@@ -109,8 +110,8 @@ class PPOAgent:
 
     def calculate_losses(self, surrogate_loss, entropy, returns, value_predictions):
         entropy_bonus = self.entropy_coef * entropy
-        policy_loss = (-surrogate_loss + entropy_bonus).sum()
-        value_loss = func.smooth_l1_loss(returns, value_predictions).sum()
+        policy_loss = (-surrogate_loss - entropy_bonus).mean()
+        value_loss = func.smooth_l1_loss(returns, value_predictions).mean()
         return policy_loss, value_loss
 
     @staticmethod
@@ -123,7 +124,7 @@ class PPOAgent:
         state = state.unsqueeze(0)
         return state.to(device)
 
-    def learn(self, batch_size=128, epochs=4):
+    def learn(self, batch_size=32, epochs=4):
         """Learn from collected data with minibatch SGD."""
         states = torch.stack(self.information['state']).to(device).squeeze(1)
         actions = torch.stack(self.information['action']).to(device)

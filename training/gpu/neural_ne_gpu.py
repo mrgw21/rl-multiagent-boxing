@@ -49,7 +49,7 @@ class Actor(nn.Module):
             nn.Dropout(0.5),
             nn.Linear(512, n_actions)
         )
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-5)
 
     def forward(self, x):
         x = self.features(x)
@@ -79,7 +79,7 @@ class Critic(nn.Module):
             nn.Dropout(0.5),
             nn.Linear(512, 1)
         )
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-5)
 
     def forward(self, x):
         x = self.features(x)
