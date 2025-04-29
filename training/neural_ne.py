@@ -13,8 +13,8 @@ class CNNFeatureExtractor(nn.Module):
     def __init__(self):
         super(CNNFeatureExtractor, self).__init__()
         self.conv_layers = nn.Sequential(
-            # First conv layer: input channels = 4 (frame stack), output = 32
-            nn.Conv2d(4, 32, kernel_size=3, padding=1), nn.ReLU(),
+            # First conv layer: input channels = 1, output = 32
+            nn.Conv2d(1, 32, kernel_size=3, padding=1), nn.ReLU(), # Potentially change to 4 channels for 'motion'
             nn.MaxPool2d(2),
             # Second conv layer: 32 -> 64 filters
             nn.Conv2d(32, 64, kernel_size=3, padding=1), nn.ReLU(),
@@ -39,27 +39,30 @@ class Actor(nn.Module):
         """
         super(Actor, self).__init__()
         self.features = CNNFeatureExtractor()
+        
         self.fc = nn.Sequential(
             nn.Flatten(),
             # Fully connected layer to interpret features
-            nn.Linear(128 * 5 * 5, 512), # that final output of the CNN is 128 feature maps of size 5x5
+            nn.Linear(128 * 13 * 10, 512), # that final output of the CNN is 128 feature maps of size 5x5
             nn.ReLU(),
             nn.Dropout(0.5),  # Dropout added - avoids overfitting
             # output logits for each action (18 actions)
             nn.Linear(512, n_actions)
         )
-        self.optimizer = torch.optim.Adam
+        self.optimizer = torch.optim.Adam(self.parameters(),lr=1e-4)
 
     def forward(self, x):
         # Forward pass through feature extractor then fully connected head
         x = self.features(x)
         return self.fc(x)
     
-    def compile (self):
-        pass
+    def save_model (self, path = "training/models/actor_model.pth"):
+        torch.save(self.state_dict(), path)
     
-    def train (self):
-        pass
+    def load_model (self, pathname = "training/models/actor_model.pth"):
+        state_dict = torch.load(pathname, weights_only = True)
+        self.load_state_dict(state_dict)
+
 
 # critic network outputs scalar value for state
 class Critic(nn.Module):
@@ -72,25 +75,22 @@ class Critic(nn.Module):
         self.fc = nn.Sequential(
             nn.Flatten(),
             # FC layer
-            nn.Linear(128 * 5 * 5, 512),
+            nn.Linear(128 * 13 * 10, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
             # Final output layer - outputs a scalar value V(s)
             nn.Linear(512, 1)
         )
-        self.optimizer = torch.optim.Adam
+        self.optimizer = torch.optim.Adam(self.parameters(),lr=1e-4)
 
     def forward(self, x):
         # Forward pass through feature extractor then FC head
         x = self.features(x)
         return self.fc(x)
     
-    def compile (self):
-        pass
+    def save_model (self, path = "training/models/critic_model.pth"):
+        torch.save(self.state_dict(), path)
     
-    def train (self):
-        pass
-    
-model = Critic()
-print(model)
-    
+    def load_model (self, pathname = "training/models/critic_model.pth"):
+        state_dict = torch.load(pathname, weights_only = True)
+        self.load_state_dict(state_dict)

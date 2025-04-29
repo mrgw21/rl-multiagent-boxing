@@ -1,0 +1,31 @@
+# === Core Deep Learning ===
+torch==2.0.1
+torchvision
+
+# === Atari RL Environment ===
+gymnasium==1.1.1
+gym==0.26.2
+ale-py==0.10.1
+multi-agent-ale-py==0.1.11
+pettingzoo[atari]==1.24.3
+AutoROM==0.4.2
+AutoROM.accept-rom-license==0.6.1
+pygame==2.3.0
+
+# === Scientific Computing and Utilities ===
+numpy>=1.22,<1.24
+matplotlib
+tqdm
+cloudpickle
+requests
+click
+pandas
+
+# === Python 3.10+ Compatibility ===
+typing_extensions
+importlib_resources
+
+# === (Optional) Jupyter/IPython (if using notebooks) ===
+# ipykernel
+# notebook
+openpyxl
