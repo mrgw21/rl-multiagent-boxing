@@ -49,11 +49,11 @@ class PPOAgent:
     def updateInformation(self, state, reward, done, trunc, info, action, action_prob):
         action = torch.tensor(action, dtype=torch.int64, device=device)
         self.information['state'].append(state)
-        self.information['state_value_function'].append(self.get_state_value(state))
         self.information['done'].append(done)
         self.information['action'].append(action)
         self.information['log_prob_action'].append(action_prob)
         self.information['reward'].append(reward)
+        self.information['state_value_function'].append(self.get_state_value(state))
         self.information['cumulative_reward'] += reward
 
     def reset_information(self):
@@ -103,8 +103,9 @@ class PPOAgent:
             return action.item(), log_prob.item()
 
     def get_state_value(self, state):
-        value = self.critic(state)
-        return torch.squeeze(value)
+        with torch.no_grad():
+            value = self.critic(state)
+        return torch.squeeze(value).item()
 
     def calculate_losses(self, surrogate_loss, entropy, returns, value_predictions):
         entropy_bonus = self.entropy_coef * entropy
@@ -128,7 +129,6 @@ class PPOAgent:
         actions = torch.stack(self.information['action']).to(device)
         old_action_prob = torch.tensor(self.information['log_prob_action'], dtype=torch.float32).to(device)
         rewards = torch.tensor(self.information['reward'], dtype=torch.float32).to(device)
-        state_value = torch.tensor(self.information['state_value_function'], dtype=torch.float32).to(device)
         done = self.information['done']
 
         returns, advantages = self.compute_gen_advantage_estimation()
@@ -146,7 +146,7 @@ class PPOAgent:
                 batch_old_action_prob = old_action_prob[batch_idx]
                 batch_returns = returns[batch_idx]
                 batch_advantages = advantages[batch_idx]
-                batch_state_value = state_value[batch_idx]
+                batch_state_value = self.critic(batch_states).squeeze()
 
                 logits = self.actor(batch_states)
                 dist = Categorical(logits=logits)
