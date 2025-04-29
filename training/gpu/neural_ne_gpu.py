@@ -27,7 +27,6 @@ class CNNFeatureExtractor(nn.Module):
             nn.MaxPool2d(2),
 
             nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2),
 
@@ -46,10 +45,13 @@ class Actor(nn.Module):
             nn.Flatten(),
             nn.Linear(128 * 5 * 5, 512),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(512, n_actions)
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, n_actions)
         )
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-5)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
 
     def forward(self, x):
         x = self.features(x)
@@ -76,16 +78,16 @@ class Critic(nn.Module):
             nn.Flatten(),
             nn.Linear(128 * 5 * 5, 512),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(512, 1)
+            nn.Linear(256, 1),
         )
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-5)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
 
     def forward(self, x):
         x = self.features(x)
         return self.fc(x)
 
     def save_model(self, path="training/models/critic_model.pth"):
+        os.makedirs(os.path.dirname(path), exist_ok=True) 
         torch.save(self.state_dict(), path)
 
     def load_model(self, pathname="training/models/critic_model.pth"):

@@ -97,10 +97,9 @@ class PPOAgent:
             dist = Categorical(logits=logits)
             if evaluate:
                 action = torch.argmax(logits, dim=1)
-                log_prob = dist.log_prob(action)
             else:
                 action = dist.sample()
-                log_prob = dist.log_prob(action)
+            log_prob = dist.log_prob(action)
             return action.item(), log_prob.item()
 
     def get_state_value(self, state):
@@ -162,10 +161,14 @@ class PPOAgent:
                 )
                 total_loss = policy_loss + 0.5 * value_loss
 
+
                 self.actor.optimizer.zero_grad()
-                self.critic.optimizer.zero_grad()
-                total_loss.backward()
+                policy_loss.backward(retain_graph=True)
                 self.actor.optimizer.step()
+
+
+                self.critic.optimizer.zero_grad()
+                value_loss.backward()
                 self.critic.optimizer.step()
 
         self.reset_information()
