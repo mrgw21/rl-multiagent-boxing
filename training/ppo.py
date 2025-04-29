@@ -10,6 +10,8 @@ At each transistion we need to collect:
 
 """
 
+# ------------- Dependencies -------------------
+
 import math
 import os
 import random
@@ -21,19 +23,27 @@ import neural_ne
 from torch.distributions.categorical import Categorical
 import torch.nn.functional as func
 
-# Hyperparamaters
-# --------------------------------------------------------------------
+# ---------------------------- PPO Class ---------------------------------
 
 class PPOAgent:
     
-    def __init__ (self):
+    def __init__ (self, actor = None, critic = None):
         
+        # Hyperparameters
         self.gamma = 0.99
         self.lam = 0.95
         self.clip_epsi = 0.2
         self.entropy_coef = 0.01
-        self.actor = neural_ne.Actor()
+        
+        # Actor and Critic Neural Nets
+        self.actor = neural_ne.Actor(18)
         self.critic = neural_ne.Critic()
+        
+        if actor is None:
+            self.actor.load_model(actor)
+            
+        if critic is None:
+            self.critic.load_model(critic)
         
         self.information = {
                 'state': [],
@@ -48,7 +58,6 @@ class PPOAgent:
     def updateInformation (self, state, reward, done, trunc, info, action, action_prob):
         """Updates information from the action taken e.g., new states, rewards"""
         
-        state = torch.tensor(state, dtype=torch.float32)
         action = torch.tensor(action, dtype=torch.int64)
         
         self.information['state'].append(state)
@@ -88,7 +97,7 @@ class PPOAgent:
         done = self.information['done']
         mask = [1 if x is False else 0 for x in done]
         
-        for i in range(len(rewards)-1,-1,-1):
+        for i in range(len(rewards)-2,-1,-1):
             delta = rewards[i] + (self.gamma * mask[i] * state_value[i+1]) - state_value[i]
             gae = delta + (self.gamma * mask[i] * self.lam * gae)
             returns.insert(0, gae + state_value[i])
@@ -121,15 +130,19 @@ class PPOAgent:
             logits = self.actor.forward(state)
             # Distribution object
             dist = Categorical(logits=logits)
+        
             if evaluate:
-                action = torch.argmax(logits,dim=1).item()
+                action = torch.argmax(logits, dim=1)
             else:
-                action = dist.sample().item()
-            probs = torch.squeeze(dist.log_prob(action)).item()
-            return action, probs
+                action = dist.sample()
+                log_prob = dist.log_prob(action)
+            
+            return action.item(), log_prob.item()
         
         
     def get_state_value (self, state):
+        """ Given the current state of the agent, this function will return the state value 
+            function from the critic neural net"""
         with torch.no_grad():
             output = self.critic.forward(state)
             value = torch.squeeze(output).item()
@@ -141,34 +154,87 @@ class PPOAgent:
         value_loss = func.smooth_l1_loss(returns, value_predictions).sum()
         return policy_loss, value_loss
     
-    def learn (self):
-        states = self.information['state']
-        actions = self.information['action']
-        old_action_prob = torch.tensor(self.information['lob_prob_action'], dtypw = torch.float32)
-        rewards = self.information['reward']
+    @staticmethod
+    def state_manipulation (to_grayscale, state):
+        """Given that the observations of the environment are different data structures between the
+        state after env.reset() and env.step()
+        
+        This function normalizes the observation to ensure consistency of the neural net inputs. """
+        
+        # Accounts for the state after env.reset()
+        if isinstance(state, tuple):
+            state = state[0]
+        
+        # Normalizes input and turns to greyscale
+        state = torch.tensor(state, dtype=torch.float32).permute(2, 0, 1) / 255.0
+        state = to_grayscale(state)
+        state = state.unsqueeze(0)
+        return state
+    
+    def learn (self, batch_size = 64, epochs = 10):
+        """This is the learn function of the agent that will train the neural nets"""
+        
+        # Get all information from the agent
+        states = torch.stack(self.information['state'])
+        states = states.squeeze(1)
+        actions = torch.stack(self.information['action'])
+        old_action_prob = torch.tensor(self.information['log_prob_action'], dtype = torch.float32)
+        rewards = torch.tensor(self.information['reward'], dtype = torch.float32)
+        state_value = torch.tensor(self.information['state_value_function'], dtype=torch.float32)
         done = self.information['done']
-        state_value = self.information['state_value_function']
         
+        # Computes returns and advantages ready for NN training
         returns, advantages = self.compute_gen_advantage_estimation()
+        returns = torch.tensor(returns, dtype=torch.float32)
+        advantages = torch.tensor(advantages, dtype=torch.float32)
         
-        logits = self.actor.forward(states)
-        dist = Categorical(logits=logits)
-        new_action_prob = dist.log_prob(actions)
+        dataset_size = len(done)
         
-        entropy_loss = torch.mean(dist.entropy())
+        for _ in range(epochs):
+            indices = torch.randperm(dataset_size)
+
+            for start_idx in range(0, dataset_size, batch_size):
+                
+                end_idx = start_idx + batch_size
+                if end_idx > dataset_size:
+                    end_idx = dataset_size - 1
+                
+                batch_idx = indices[start_idx:end_idx].to(torch.long)
+                
+                batch_states = states[batch_idx]
+                batch_actions = actions[batch_idx]
+                batch_old_action_prob = old_action_prob[batch_idx]
+                batch_returns = returns[batch_idx]
+                batch_advantages = advantages[batch_idx]
+                batch_state_value = state_value[batch_idx]
         
-        surrogate_loss = self.clipped_surrogate_loss(advantages, old_action_prob, new_action_prob)
+ 
+                logits = self.actor.forward(batch_states)
+                dist = Categorical(logits=logits)
+                new_action_prob = dist.log_prob(batch_actions)
         
-        policy_loss, value_loss = self.calculate_losses(surrogate_loss, entropy_loss, returns, state_value)
-        
-        total_loss = policy_loss + 0.5 * value_loss
-        
-        self.actor.optimizer.zero_grad()
-        self.critic.optimizer.zero_grad()
-        
-        total_loss.backward()
-        
-        self.actor.optimizer.step()
-        self.critic.optimizer.step()
-        
+                entropy_loss = torch.mean(dist.entropy())
+                
+                surrogate_loss = self.clipped_surrogate_loss(batch_advantages, batch_old_action_prob, new_action_prob)
+                
+                policy_loss, value_loss = self.calculate_losses(surrogate_loss, entropy_loss, batch_returns, batch_state_value)
+                
+                total_loss = policy_loss + 0.5 * value_loss
+                
+                self.actor.optimizer.zero_grad()
+                self.critic.optimizer.zero_grad()
+                
+                total_loss.backward()
+                
+                self.actor.optimizer.step()
+                self.critic.optimizer.step()
+                
         self.reset_information()
+
+    """Functions to retrieve information from the object"""
+    
+    def access_cumulative_reward (self):
+        return self.information['cumulative_reward']
+
+    def access_information(self):
+        return self.information
