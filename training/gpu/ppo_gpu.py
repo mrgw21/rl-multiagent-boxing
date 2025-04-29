@@ -103,9 +103,8 @@ class PPOAgent:
             return action.item(), log_prob.item()
 
     def get_state_value(self, state):
-        with torch.no_grad():
-            value = self.critic(state)
-            return torch.squeeze(value).item()
+        value = self.critic(state)
+        return torch.squeeze(value)
 
     def calculate_losses(self, surrogate_loss, entropy, returns, value_predictions):
         entropy_bonus = self.entropy_coef * entropy
@@ -159,13 +158,10 @@ class PPOAgent:
                 policy_loss, value_loss = self.calculate_losses(
                     surrogate_loss, entropy_loss, batch_returns, batch_state_value
                 )
-                total_loss = policy_loss + 0.5 * value_loss
-
 
                 self.actor.optimizer.zero_grad()
-                policy_loss.backward(retain_graph=True)
+                policy_loss.backward()
                 self.actor.optimizer.step()
-
 
                 self.critic.optimizer.zero_grad()
                 value_loss.backward()
