@@ -76,9 +76,9 @@ class Critic(nn.Module):
         self.features = CNNFeatureExtractor()
         self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(128 * 5 * 5, 256),
+            nn.Linear(128 * 5 * 5, 512),
             nn.ReLU(),
-            nn.Linear(256, 1),
+            nn.Linear(512, 1),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
 
