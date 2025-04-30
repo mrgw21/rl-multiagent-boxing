@@ -25,7 +25,6 @@ env = gym.make("ALE/Boxing-v5", frameskip=1)
 env = gym.wrappers.AtariPreprocessing(env, frame_skip=4, grayscale_obs=True, grayscale_newaxis=True, screen_size=84, scale_obs=False, terminal_on_life_loss=True)
 env = gym.wrappers.FrameStackObservation(env, 4)
 
-to_grayscale = T.Grayscale(num_output_channels=1)
 
 def gather_data(actor=None, critic=None, target_episodes=2000):
     """Gathers data for multiple episodes, learning after each episode."""
@@ -35,15 +34,15 @@ def gather_data(actor=None, critic=None, target_episodes=2000):
     agent = ppo_gpu.PPOAgent(actor, critic)
     episode_num = 0
 
-    #os.makedirs("/mnt/saved_models", exist_ok=True)
-    #os.makedirs("/mnt/saved_metrics", exist_ok=True)
+    os.makedirs("/mnt/saved_models", exist_ok=True)
+    os.makedirs("/mnt/saved_metrics", exist_ok=True)
 
     while episode_num < target_episodes:
         done = False
         state = env.reset()
         episode_reward = 0
         while not done:
-            state_t = agent.state_manipulation(to_grayscale, state)
+            state_t = agent.state_manipulation(state)
 
             action, prob = agent.get_action(state_t)
             action = torch.tensor(action, dtype=torch.int64)
@@ -64,13 +63,11 @@ def gather_data(actor=None, critic=None, target_episodes=2000):
         if episode_num % 100 == 0:
             agent.actor.save_model(f"/mnt/saved_models/actor_ep{episode_num}.pth")
             agent.critic.save_model(f"/mnt/saved_models/critic_ep{episode_num}.pth")
-            output_to_excel(reward_tracker, f"training_rewards_{episode_num}.xlsx")
             output_to_excel(reward_tracker, f"/mnt/saved_metrics/training_rewards_{episode_num}.xlsx")
             print(f"Saved models at episode {episode_num}")
 
     agent.actor.save_model("/mnt/saved_models/actor_final.pth")
     agent.critic.save_model("/mnt/saved_models/critic_final.pth")
-    output_to_excel(reward_tracker, "training_rewards_final.xlsx")
     output_to_excel(reward_tracker, "/mnt/saved_metrics/training_rewards_final.xlsx")
 
 
@@ -85,7 +82,7 @@ def evaluate(actor_path, critic_path):
         cumulative_reward = 0
 
         while not done:
-            state_t = agent.state_manipulation(to_grayscale, state)
+            state_t = agent.state_manipulation(state)
             action, prob = agent.get_action(state_t, evaluate=True)
             action_tensor = torch.tensor(action, dtype=torch.int64, device=device)
             new_state, reward, done, trunc, info = env.step(action)

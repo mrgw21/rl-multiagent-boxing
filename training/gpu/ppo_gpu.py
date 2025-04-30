@@ -138,7 +138,7 @@ class PPOAgent:
         return policy_loss, value_loss
 
     @staticmethod
-    def state_manipulation(to_grayscale, state):
+    def state_manipulation(state):
         # Normalize observation and move to correct device
         if isinstance(state, tuple):
             state = state[0]
@@ -156,8 +156,7 @@ class PPOAgent:
         state_values = torch.tensor(self.information['state_value_function'], dtype = torch.float32).to(device)
         done = self.information['done']
 
-        returns = self.calculate_returns(rewards)
-        advantages = self.calculate_advantages(returns, state_values)
+        returns, advantages = self.compute_gen_advantage_estimation()
 
         dataset_size = advantages.shape[0]
         
