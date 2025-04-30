@@ -20,10 +20,12 @@ if torch.cuda.is_available():
 else:
     print("No CUDA device available.")
 
-env = gym.make("ALE/Boxing-v5", frameskip=5)
-to_grayscale = T.Grayscale(num_output_channels=1)
+# Crucial that gymnasium is consistently used, rather tahn gym. Note that gymnasium is shortened to gym in import
+env = gym.make("ALE/Boxing-v5", frameskip=1)
+env = gym.wrappers.AtariPreprocessing(env, frame_skip=4, grayscale_obs=True, grayscale_newaxis=True, screen_size=84, scale_obs=False, terminal_on_life_loss=True)
+env = gym.wrappers.FrameStackObservation(env, 4)
 
-import os
+to_grayscale = T.Grayscale(num_output_channels=1)
 
 def gather_data(actor=None, critic=None, target_episodes=2000):
     """Gathers data for multiple episodes, learning after each episode."""
@@ -33,14 +35,13 @@ def gather_data(actor=None, critic=None, target_episodes=2000):
     agent = ppo_gpu.PPOAgent(actor, critic)
     episode_num = 0
 
-    os.makedirs("/mnt/saved_models", exist_ok=True)
-    os.makedirs("/mnt/saved_metrics", exist_ok=True)
+    #os.makedirs("/mnt/saved_models", exist_ok=True)
+    #os.makedirs("/mnt/saved_metrics", exist_ok=True)
 
     while episode_num < target_episodes:
         done = False
         state = env.reset()
         episode_reward = 0
-
         while not done:
             state_t = agent.state_manipulation(to_grayscale, state)
 

@@ -11,7 +11,7 @@ class CNNFeatureExtractor(nn.Module):
     def __init__(self):
         super(CNNFeatureExtractor, self).__init__()
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.Conv2d(4, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(2),

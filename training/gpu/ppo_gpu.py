@@ -68,16 +68,18 @@ class PPOAgent:
         }
 
     def compute_gen_advantage_estimation(self):
-        gae = 0
-        returns = []
+
         rewards = self.information['reward']
         state_value = self.information['state_value_function']
         done = self.information['done']
+        
+        gae = 0
+        returns = []
         mask = [1 if not x else 0 for x in done]
-
-        for i in range(len(rewards) - 2, -1, -1):
-            delta = rewards[i] + (self.gamma * mask[i] * state_value[i + 1]) - state_value[i]
-            gae = delta + (self.gamma * mask[i] * self.lam * gae)
+        
+        for i in reversed(range(len(rewards) - 1)):
+            delta = rewards[i] + (self.gamma * state_value[i + 1] * mask[i]) - state_value[i]
+            gae = delta + (self.gamma * self.lam * mask[i] * gae)
             returns.insert(0, gae + state_value[i])
 
         adv = torch.tensor(np.array(returns) - state_value[:-1], dtype=torch.float32, device=device)
@@ -140,9 +142,9 @@ class PPOAgent:
         # Normalize observation and move to correct device
         if isinstance(state, tuple):
             state = state[0]
-        state = torch.tensor(state, dtype=torch.float32).permute(2, 0, 1) / 255.0
-        state = to_grayscale(state)
-        state = state.unsqueeze(0)
+
+        state = torch.tensor(state, dtype=torch.float32) / 255.0
+        state = state.permute(3, 0, 1, 2)
         return state.to(device)
 
     def learn(self, batch_size=128, epochs=4):
