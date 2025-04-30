@@ -84,12 +84,34 @@ class PPOAgent:
         adv = (adv - torch.mean(adv)) / (torch.std(adv) + 1e-10)
         returns = torch.tensor(returns, dtype=torch.float32, device=device)
         return returns, adv
+    
+    def calculate_returns(self, rewards):
+        """Calculates returns
+        
+        Option: Normalize return
+        """
+        
+        returns = []
+        discounted_reward = 0
+        
+        for r in reversed(rewards):
+            discounted_reward = r + discounted_reward * self.gamma
+            returns.insert(0, discounted_reward)
+        
+        returns = torch.tensor(returns, dtype=torch.float32)
+        return returns
+        
+        
+    def calculate_advantages(self, returns, values):
+        advantages = returns - values
+        advantages = (advantages - advantages.mean()) / advantages.std()
+        return advantages
 
     def clipped_surrogate_loss(self, advantage, old_probability, new_probability):
         ratio = torch.exp(new_probability - old_probability)
         unclipped_loss = ratio * advantage
         clipped_loss = torch.clamp(ratio, 1 - self.clip_epsi, 1 + self.clip_epsi) * advantage
-        return torch.minimum(unclipped_loss, clipped_loss).mean()
+        return torch.minimum(unclipped_loss, clipped_loss)
 
     def get_action(self, state, evaluate=False):
         with torch.no_grad():
@@ -129,9 +151,11 @@ class PPOAgent:
         actions = torch.stack(self.information['action']).to(device)
         old_action_prob = torch.tensor(self.information['log_prob_action'], dtype=torch.float32).to(device)
         rewards = torch.tensor(self.information['reward'], dtype=torch.float32).to(device)
+        state_values = torch.tensor(self.information['state_value_function'], dtype = torch.float32).to(device)
         done = self.information['done']
 
-        returns, advantages = self.compute_gen_advantage_estimation()
+        returns = self.calculate_returns(rewards)
+        advantages = self.calculate_advantages(returns, state_values)
 
         dataset_size = advantages.shape[0]
         

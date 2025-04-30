@@ -49,7 +49,8 @@ class Actor(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Linear(128, n_actions)
+            nn.Linear(128, n_actions),
+            nn.Softmax(dim=-1)
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
 
