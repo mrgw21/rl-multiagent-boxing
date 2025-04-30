@@ -25,4 +25,4 @@ RUN HOME=/root AutoROM --accept-license
 COPY . .
 
 # --- Entrypoint: run ppo_main.py (not as module) ---
-CMD ["python3.8", "training/ppo_main.py"]
+CMD ["python3.8", "training/gpu/ppo_main_gpu.py"]
