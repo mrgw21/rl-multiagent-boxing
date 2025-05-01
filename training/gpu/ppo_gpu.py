@@ -140,8 +140,6 @@ class PPOAgent:
         entropy_bonus = self.entropy_coef * entropy
         policy_loss = surrogate_loss - entropy_bonus
         
-        print("entropy bonus", entropy_bonus)
-        
         value_pred_clipped = old_value_prediction + (value_predictions - old_value_prediction).clamp(self.clip_epsi, self.clip_epsi)
         value_loss_unclipped = (value_predictions - returns) ** 2
         value_loss_clipped = (value_pred_clipped - returns) ** 2
@@ -202,6 +200,8 @@ class PPOAgent:
                 policy_loss, value_loss = self.calculate_losses(
                     surrogate_loss, entropy_loss, batch_returns, old_batch_state_values, batch_state_value
                 )
+                
+                print("entropy: ", entropy_loss)
 
                 self.actor.optimizer.zero_grad()
                 policy_loss.backward()
