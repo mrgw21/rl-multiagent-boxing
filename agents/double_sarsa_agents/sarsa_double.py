@@ -12,7 +12,7 @@ import shimmy
 import time
 import gymnasium as gym
 import random
-from utils.agent_utils import load_agent, test_agent, save_agent, plot_rewards
+from utils.agent_utils import load_linear_agent, test_linear_agent, save_linear_agent, plot_rewards
 from utils.lsh_script import LSH
 from utils.PER import store_experience, prioritised_sample, update_priority_order
 
@@ -38,7 +38,7 @@ class Base_Double_Sarsa_Agent:
             self.feature_length = 1052
         else:
             raise ValueError("Feature Type not recognised")
-        self.normalise_features = True
+        self.normalise_features = False
 
         # Create env using ram observation type
         if self.feature_type == "lsh":
@@ -56,8 +56,8 @@ class Base_Double_Sarsa_Agent:
 
         # Create variables + define hyperparameters that will apply to all agents
         # Rather than use zeros for weights, start with a random initialisation
-        self.weights_1 = np.random.uniform(-0.01, 0.01, (self.num_actions, self.feature_length))
-        self.weights_2 = np.random.uniform(-0.01, 0.01, (self.num_actions, self.feature_length))
+        self.weights_1 = np.random.uniform(-0.001, 0.001, (self.num_actions, self.feature_length))
+        self.weights_2 = np.random.uniform(-0.001, 0.001, (self.num_actions, self.feature_length))
         # Add target networks for more stable learning 
         self.target_weights_1 = self.weights_1.copy()
         self.target_weights_2 = self.weights_2.copy()
@@ -111,7 +111,7 @@ class Base_Double_Sarsa_Agent:
         player_y = int(observations[34])
         opponent_x = int(observations[33])
         opponent_y = int(observations[35])
-        dx = abs(opponent_x - player_x)
+        dx = abs(opponent_x - player_x) 
         dy = abs(opponent_y - player_y)
         manhattan_distance = dx + dy
 
@@ -119,14 +119,28 @@ class Base_Double_Sarsa_Agent:
         y_dist = np.unpackbits(np.array([dy], dtype=np.uint8))  
         man_dist = np.unpackbits(np.array([manhattan_distance], dtype = np.uint8))
 
-        logic_bits = np.array([
+        binary_observations = np.unpackbits(observations)
+
+        if self.normalise_features:
+            binary_observations = binary_observations.astype(np.float32) / 1.0
+            x_dist = x_dist.astype(np.float32) / 1.0
+            y_dist = y_dist.astype(np.float32) / 1.0
+            man_dist = man_dist.astype(np.float32) / 1.0
+
+            logic_bits = np.array([
+                                    player_x > opponent_x,
+                                    player_y > opponent_y,
+                                    manhattan_distance < 10,
+                                    manhattan_distance < 20
+                                ], dtype=np.float32)
+        else:
+            logic_bits = np.array([
                                 player_x > opponent_x,
                                 player_y > opponent_y,
                                 manhattan_distance < 10,
                                 manhattan_distance < 20
                             ], dtype=np.uint8)
 
-        binary_observations = np.unpackbits(observations)
 
         features = np.concatenate([binary_observations, x_dist, y_dist, man_dist, logic_bits])
         return features
@@ -206,267 +220,12 @@ class Base_Double_Sarsa_Agent:
     
     def update_weights(self, action, state, td_error, update_weights):
         """Performs update directly to agent's weight vectors rather than to local weights"""
+        update = self.alpha * td_error * state
+        update = np.clip(update, -0.1, 0.1)
+
         if update_weights is self.weights_1:
-            self.weights_1[action] += self.alpha * td_error * state
+            self.weights_1[action] += update
         else:
-            self.weights_2[action] += self.alpha * td_error * state
-
-
-class Double_SARSA_Agent:
-    """
-    Double SARSA with prioritised experience replay for Boxing
-    """
-    def __init__(self, name, render=None, feature_type="reduced_ram"):
-        """
-        feature_type can be either "reduced_ram", "full_ram" or "lsh"
-        """
-        # Determine feature type
-        self.feature_type = feature_type
-        if self.feature_type == "reduced_ram":
-            self.feature_length = 10
-        elif self.feature_type == "full_ram":
-            self.feature_length = 524800  # Length of the features
-        elif self.feature_type == "lsh":
-            self.lsh = LSH()
-            self.feature_length = self.lsh.num_rand_bit_vecs * self.lsh.hash_table_size
-        else:
-            raise ValueError("Feature Type not recognised")
-        
-        # Define general hyperparameters
-        self.action_list = [i for i in range(18)]
-        self.num_actions = len(self.action_list)
-        # Rather than use zeros for weights, start with a random initialisation
-        self.weights_1 = np.random.uniform(-0.01, 0.01, (self.num_actions, self.feature_length))
-        self.weights_2 = np.random.uniform(-0.01, 0.01, (self.num_actions, self.feature_length))
-        # Add target networks for more stable learning 
-        self.target_weights_1 = self.weights_1.copy()
-        self.target_weights_2 = self.weights_2.copy()
-        self.target_update_freq = 1000
-        self.steps = 0
-
-        self.alpha = 0.01
-        self.epsilon = 0.5
-        self.epsilon_decay = 0.999
-        self.epsilon_min = 0.01
-        self.alpha_decay = 0.999
-        self.alpha_min = 0.001
-        self.gamma = 0.9
-        
-        # Prioritised experience replay using Schaul et al. (2015) - Prioritised Experience Replay).
-        self.max_capacity = 10000
-        self.replay_buffer = deque(maxlen=self.max_capacity)
-        self.priorities = deque(maxlen=self.max_capacity)
-        self.batch_size = 32
-        # "how much prioritisation is used" - when exp_alpha is 0, all samples have the same probability of being sampled
-        self.exp_alpha = 0.6
-        # Importance sampling exponent - prevents bias of sampling from only high priority samples
-        self.initial_beta = 0.4
-        self.exp_beta = 0.4
-        self.exp_beta_increment = (1.0 - 0.4) / 50000
-
-        # Hyperparameters for eligibility traces using the cache method from Daley & Amato (2020) - https://arxiv.org/pdf/1810.09967
-        self.e_traces_1 = np.zeros((self.num_actions, self.feature_length))
-        self.e_traces_2 = np.zeros((self.num_actions, self.feature_length))
-        self.lam_val = 0.9
-        self.Q_old = 0
-        self.psi = None
-        self.psi_prime = None
-        self.cache_size = 80000
-        self.block_size = 100
-        self.refresh_frequency = 10000
-        self.cache = []
-        self.steps_since_last_update = 0
-        self.cache_update_probability = 0.7 # Probability of using cache to perform update vs. immediate TD val
-        self.normalise_features = True
-
-        # Create env using ram observation type
-        if self.feature_type == "lsh":
-            self.env = gym.make("ALE/Boxing-ram-v5", obs_type="rgb", render_mode="rgb_array")
-        else:
-            self.env = gym.make("ALE/Boxing-ram-v5", obs_type="ram", render_mode=render)
-        
-        # Store agent name and rewards
-        self.name = name
-        self.rewards_history = []
+            self.weights_2[action] += update
 
     
-    def train_double_sarsa_lambda(self, num_episodes=5000, bot_difficulty=0, render_mode=None, normalise_features=True):
-        """
-        Trains the agent using a double SARSA(λ) approach with eligibility traces + prioritised experience replay.
-        """
-        # Ensure render mode is rgb_array if using lsh
-        if self.feature_type == "lsh":
-            render_mode = "rgb_array"
-            obs_type = "rgb"
-        else:
-            obs_type = "ram"
-
-        self.env = gym.make("ALE/Boxing-ram-v5", obs_type=obs_type, render_mode=render_mode)
-        print(f"Training with difficulty: {bot_difficulty}")
-
-        for episode in range(num_episodes):
-            # Reset environment and eligibility traces
-            state, _ = self.env.reset()
-            state = self.feature_extraction(state)
-            action = self.policy(state, online=True)  # Use online=True for initial action selection
-
-            # Reset traces for both networks
-            self.e_traces_1.fill(0.0)
-            self.e_traces_2.fill(0.0)
-
-            total_reward = 0
-            finished = False
-            steps_in_episode = 0
-
-            # Halfway save/plot logic
-            if episode > 0 and episode == num_episodes // 2:
-                save_agent(self, f"{self.name}_lambda_per_halfway")
-                plot_rewards(self.rewards_history,
-                            graph_name=f"{self.name} Lambda PER (Episodes 0-{episode})",
-                            save_path=f"{self.name}_lambda_per_halfway_learning_curve.png")
-                print(f"Halfway results saved at episode {episode}")
-
-            while not finished:
-                # Environment step
-                next_state_raw, reward, terminated, truncated, _ = self.env.step(action)
-                next_state = self.feature_extraction(next_state_raw)
-                finished = terminated or truncated
-                next_action = self.policy(next_state, online=True)  # Choose next action (on-policy for SARSA)
-
-                self.steps += 1
-                steps_in_episode += 1
-                total_reward += reward
-
-                # --- On-Policy SARSA(λ) Update ---
-                # Randomly choose which network to update and which to use for target
-                if np.random.rand() < 0.5:
-                    update_weights = self.weights_1
-                    target_weights = self.target_weights_2  # Use target network for stability
-                    e_traces = self.e_traces_1
-                else:
-                    update_weights = self.weights_2
-                    target_weights = self.target_weights_1  # Use target network for stability
-                    e_traces = self.e_traces_2
-
-                # Calculate Q-values needed for TD error
-                current_q_val = self.value(state, action, update_weights)
-                next_q_val = 0.0
-                if not finished:
-                    # Get Q(s', a') from the *target* network corresponding to the *other* online network
-                    next_q_val = self.value(next_state, next_action, target_weights)
-
-                # Calculate TD error (delta)
-                delta = reward + self.gamma * next_q_val - current_q_val
-
-                # Update eligibility traces (Replacing traces for linear FA)
-                # Decay existing traces
-                e_traces *= self.gamma * self.lam_val
-                # Add current state-action feature vector to the trace for the taken action
-                # Ensure state is flat
-                if state.ndim > 1:
-                    state = state.flatten()
-                if len(state) == self.feature_length:
-                    e_traces[action] += state
-                else:  # Handle mismatch if it occurs
-                    print(f"Warning: State feature length {len(state)} != expected {self.feature_length} during trace update. Skipping trace increment.")
-
-                # Update weights using traces and TD error
-                update_weights += self.alpha * delta * e_traces  # Element-wise multiplication for linear FA update
-
-                # --- Store Experience for PER ---
-                experience = (state, action, reward, next_state, next_action, finished)
-                priority = abs(delta)  # Use magnitude of on-policy TD error for initial priority
-                store_experience(self, experience, priority)
-
-                # --- Prioritized Experience Replay (Off-policy TD(0) updates) ---
-                if len(self.replay_buffer) > self.batch_size:
-                    # Sample batch from replay buffer using priorities
-                    sample_batch, sample_indices, importance_weights = prioritised_sample(self)
-                    td_errors_for_update = []  # Store TD errors from replay batch
-
-                    # Perform updates for each sampled experience
-                    for i, sampled_experience in enumerate(sample_batch):
-                        s_state, s_action, s_reward, s_next_state, s_next_action, s_finished = sampled_experience
-
-                        # Randomly choose which network to update and which to use for target (Double learning for replay)
-                        if np.random.rand() < 0.5:
-                            s_update_weights = self.weights_1
-                            s_target_weights = self.target_weights_2  # Use target network
-                        else:
-                            s_update_weights = self.weights_2
-                            s_target_weights = self.target_weights_1  # Use target network
-
-                        # Calculate target Q value for the sampled transition
-                        s_current_q = self.value(s_state, s_action, s_update_weights)
-                        s_next_q = 0.0
-                        if not s_finished:
-                            # Use Q(s', a') from the target network
-                            s_next_q = self.value(s_next_state, s_next_action, s_target_weights)
-
-                        # Calculate TD error for the sampled transition (TD(0))
-                        s_td_error = s_reward + self.gamma * s_next_q - s_current_q
-                        s_td_error = np.clip(s_td_error, -1.0, 1.0) 
-                        td_errors_for_update.append(abs(s_td_error))  # Store error magnitude for priority update
-
-                        # Update weights using TD error, importance sampling weight, and state features
-                        # Ensure s_state is flat and has correct length
-                        if s_state.ndim > 1:
-                            s_state = s_state.flatten()
-                        if len(s_state) == self.feature_length:
-                            update_step = self.alpha * s_td_error * importance_weights[i] * s_state
-                            s_update_weights[s_action] += update_step
-                        else:
-                            print(f"Warning: Sampled state feature length {len(s_state)} != expected {self.feature_length}. Skipping replay update.")
-
-                    # Update priorities of the sampled experiences in the buffer
-                    update_priority_order(self, sample_indices, td_errors_for_update)
-
-                # Update target networks periodically
-                if self.steps % self.target_update_freq == 0:
-                    self.update_target_networks()
-
-                # Transition to next state
-                state = next_state
-                action = next_action
-
-            # --- End of Episode ---
-            # Decay epsilon and potentially alpha
-            self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
-            # self.alpha = max(self.alpha * self.alpha_decay, self.alpha_min)  # Optional alpha decay
-
-            # Anneal beta for importance sampling
-            self.exp_beta = min(1.0, self.exp_beta + self.exp_beta_increment)
-
-            self.rewards_history.append(total_reward)
-
-            if episode % 10 == 0:
-                avg_reward = np.mean(self.rewards_history[-100:])  # Use rolling average (e.g., last 100)
-                print(f"Episode: {episode}, Total Steps: {self.steps}, Ep Reward: {total_reward}, Avg Reward (100): {avg_reward:.2f}, Epsilon: {self.epsilon:.4f}, Beta: {self.exp_beta:.4f}")
-
-        # --- End of Training ---
-        self.env.close()  # Clean up environment
-        print("Training finished.")
-        # Save final agent and plot rewards
-        save_agent(self, f"{self.name}_lambda_per_final")
-        plot_rewards(self.rewards_history,
-                    graph_name=f"{self.name} Lambda PER (Final)",
-                    save_path=f"{self.name}_lambda_per_final_learning_curve.png")
-
-        return self.rewards_history
-    
-    
-
-    
-
-# Only run training if we are running this script - needed when importing module from another script
-if __name__ == "__main__":
-    agent = Double_SARSA_Agent("Double_SARSA_Boxing_22_04_train_prioritised_cache_full", render=None, feature_type="full_ram")
-    print(agent.name)
-    rewards = agent.train_double_sarsa_with_cache(num_episodes=5000) # Default difficulty
-
-    save_agent(agent, agent.name)
-    loaded_agent = load_agent(agent.name)
-    test_agent(loaded_agent, render_mode=None)
-
-    plot_rewards(rewards, "Final Agent Rewards", save_path=f"Learning Curves/{agent.name} Final Curve")
-

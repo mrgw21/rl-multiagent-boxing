@@ -13,7 +13,7 @@ import shimmy
 import time
 import gymnasium as gym
 import random
-from utils.agent_utils import test_agent, load_agent
+from utils.agent_utils import test_linear_agent, load_linear_agent
 from double_sarsa_agents import (
     Base_Double_Sarsa_Agent,
     TrueOnlineSarsa,
@@ -23,48 +23,55 @@ from double_sarsa_agents import (
     DoubleSarsaPrioritisedExperience,
     DoubleSarsaPriortisedExperienceWithCache
 )
-
 import pickle
+import os
+import csv
+import numpy as np
+from utils.agent_utils import load_linear_agent, test_linear_agent
 
+# Dir with saved agents
+agent_dir = "saved_agents/best_agents/"
+best = True  # Set to True if using 'best_agents' dir
 
-# When you load an agent, if you get an attribute error it's probably because its class no longer exists (After I reorganised the code).
-# To fix this - I've left the original class in sarsa_double for now (can delete later) - import using:
+# CSV output path to save results to 
+output_csv = "best_agent_rewards_output.csv"
 
-# from sarsa_double import Double_SARSA_Agent 
+# Filter agent filenames: contains "30" and ends with "00.pkl"
+agent_files = [
+    f for f in os.listdir(agent_dir)
+    # if "_30_" and 'Experience' in f and not (f.endswith("00.pkl") or f.endswith('way.pkl'))
+]
 
-# This code lets you load the agent, change its class to one in double_sarsa_agents and then write it to a new pickle file
+print("Found agents:", agent_files)
 
-# agent = load_agent(agent_using_old_Double_SARSA_Agent_class")
-# loaded_agent.__class__ = DoubleSarsaPriortisedExperienceWithCache
+difficulties = [1, 2, 3, 0]
 
-# # Save to a new pickle
-# with open("saved_agents/agent_using_correct_class.pkl", "wb") as f:
-#     pickle.dump(loaded_agent, f)
+# Open CSV file for writing
+with open(output_csv, mode='w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    
+    # Write CSV header
+    writer.writerow(["agent_name", "difficulty", "episode", "reward"])
+    
+    for agent_file in agent_files:
+        agent_name = agent_file.replace(".pkl", "")
+        print(f"\nTesting agent: {agent_name}")
+        
+        # Load the agent
+        agent = load_linear_agent(agent_name, best=best)
 
-# Only use best = True if it's in the best_agents folder 
-# agent = load_agent("best_agent_semi_prioritised_cache_23_04", best = False)
-# test_agent(agent, episodes=5, render_mode=None, difficulty=0)
-# test_agent(agent, episodes=5, render_mode=None, difficulty=1)
-# test_agent(agent, episodes=5, render_mode=None, difficulty=2)
-# test_agent(agent, episodes=5, render_mode=None, difficulty=3)
+        try:
+            # Test on each difficulty level
+            for difficulty in difficulties:
+                print(f"  Testing difficulty {difficulty}")
+                rewards = test_linear_agent(agent, episodes=500, render_mode=None, difficulty=difficulty)
+                
+                # Write each reward per episode
+                for episode_idx, reward in enumerate(rewards):
+                    writer.writerow([agent_name, difficulty, episode_idx + 1, reward])
+        except:
+            pass
 
-difficulties = [0, 1, 2, 3]
-rewards_per_difficulty = {}
-
-agent = load_agent("23_04_04_cache_2", best=False)
-
-for difficulty in difficulties:
-    total_reward = 0
-    episodes = 500
-
-    rewards = test_agent(agent, episodes=500, render_mode=None, difficulty=difficulty)
-    rewards = np.array(rewards)
-    average_reward = np.mean(rewards)
-
-    rewards_per_difficulty[difficulty] = average_reward
-
-for diff, avg in rewards_per_difficulty.items():
-    print(f"Difficulty {diff}: Average Reward over 500 episodes = {avg:.2f}")
-
+print(f"\nResults saved to {output_csv}")
 
 

@@ -1,0 +1,12 @@
+Agent: PER_with_cache_23_04_rank2 | Difficulty: 0 | Mean: 4.53 | SD: 4.97 | Min: -9.0 | Max: 18.0
+Agent: PER_with_cache_23_04_rank2 | Difficulty: 1 | Mean: 2.81 | SD: 5.07 | Min: -15.0 | Max: 19.0
+Agent: PER_with_cache_23_04_rank2 | Difficulty: 2 | Mean: 5.87 | SD: 2.71 | Min: 0.0 | Max: 15.0
+Agent: PER_with_cache_23_04_rank2 | Difficulty: 3 | Mean: 1.95 | SD: 2.30 | Min: -4.0 | Max: 8.0
+Agent: PER_with_cache_agent_22_04_rank1 | Difficulty: 0 | Mean: 10.36 | SD: 8.05 | Min: -9.0 | Max: 42.0
+Agent: PER_with_cache_agent_22_04_rank1 | Difficulty: 1 | Mean: 9.77 | SD: 11.94 | Min: -10.0 | Max: 50.0
+Agent: PER_with_cache_agent_22_04_rank1 | Difficulty: 2 | Mean: 7.62 | SD: 3.55 | Min: -2.0 | Max: 19.0
+Agent: PER_with_cache_agent_22_04_rank1 | Difficulty: 3 | Mean: 7.81 | SD: 4.08 | Min: 0.0 | Max: 26.0
+Agent: best_agent_semi_prioritised_cache_23_04 | Difficulty: 0 | Mean: 41.24 | SD: 16.80 | Min: 0.0 | Max: 76.0
+Agent: best_agent_semi_prioritised_cache_23_04 | Difficulty: 1 | Mean: 16.29 | SD: 14.18 | Min: -9.0 | Max: 66.0
+Agent: best_agent_semi_prioritised_cache_23_04 | Difficulty: 2 | Mean: 68.51 | SD: 13.96 | Min: 10.0 | Max: 94.0
+Agent: best_agent_semi_prioritised_cache_23_04 | Difficulty: 3 | Mean: 40.08 | SD: 22.66 | Min: 1.0 | Max: 94.0

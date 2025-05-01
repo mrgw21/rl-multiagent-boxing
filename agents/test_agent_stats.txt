@@ -1,0 +1,48 @@
+Agent: Double Sarsa With Prioritised Experience Replay + Cache | Difficulty: 0 | Mean: -16.53 | SD: 10.08 | Min: -57.0 | Max: 1.0
+Agent: Double Sarsa With Prioritised Experience Replay + Cache | Difficulty: 1 | Mean: -16.01 | SD: 9.91 | Min: -52.0 | Max: 2.0
+Agent: Double Sarsa With Prioritised Experience Replay + Cache | Difficulty: 2 | Mean: 0.29 | SD: 1.29 | Min: -5.0 | Max: 5.0
+Agent: Double Sarsa With Prioritised Experience Replay + Cache | Difficulty: 3 | Mean: -1.09 | SD: 1.30 | Min: -5.0 | Max: 3.0
+Agent: DoubleSarsaPrioritisedExperience | Difficulty: 0 | Mean: 6.16 | SD: 6.97 | Min: -15.0 | Max: 29.0
+Agent: DoubleSarsaPrioritisedExperience | Difficulty: 1 | Mean: 2.48 | SD: 5.70 | Min: -21.0 | Max: 19.0
+Agent: DoubleSarsaPrioritisedExperience | Difficulty: 2 | Mean: 8.09 | SD: 4.73 | Min: -3.0 | Max: 23.0
+Agent: DoubleSarsaPrioritisedExperience | Difficulty: 3 | Mean: 3.25 | SD: 3.09 | Min: -4.0 | Max: 12.0
+Agent: DoubleSarsaPriortisedExperienceWithCache | Difficulty: 0 | Mean: 31.01 | SD: 17.99 | Min: -5.0 | Max: 87.0
+Agent: DoubleSarsaPriortisedExperienceWithCache | Difficulty: 1 | Mean: 15.22 | SD: 12.39 | Min: -9.0 | Max: 66.0
+Agent: DoubleSarsaPriortisedExperienceWithCache | Difficulty: 2 | Mean: 46.34 | SD: 19.07 | Min: 5.0 | Max: 88.0
+Agent: DoubleSarsaPriortisedExperienceWithCache | Difficulty: 3 | Mean: 25.11 | SD: 12.81 | Min: -1.0 | Max: 80.0
+Agent: Double_Sarsa_No_Experience_30_1746052669 | Difficulty: 0 | Mean: -54.00 | SD: 0.00 | Min: -54.0 | Max: -54.0
+Agent: Double_Sarsa_No_Experience_30_1746052669 | Difficulty: 1 | Mean: -54.00 | SD: 0.00 | Min: -54.0 | Max: -54.0
+Agent: Double_Sarsa_No_Experience_30_1746052669 | Difficulty: 2 | Mean: -9.00 | SD: 0.00 | Min: -9.0 | Max: -9.0
+Agent: Double_Sarsa_No_Experience_30_1746052669 | Difficulty: 3 | Mean: -9.00 | SD: 0.00 | Min: -9.0 | Max: -9.0
+Agent: Double_Sarsa_No_Experience_30_no_norm_1746084017 | Difficulty: 0 | Mean: -54.00 | SD: 0.00 | Min: -54.0 | Max: -54.0
+Agent: Double_Sarsa_No_Experience_30_no_norm_1746084017 | Difficulty: 1 | Mean: -54.00 | SD: 0.00 | Min: -54.0 | Max: -54.0
+Agent: Double_Sarsa_No_Experience_30_no_norm_1746084017 | Difficulty: 2 | Mean: -9.00 | SD: 0.00 | Min: -9.0 | Max: -9.0
+Agent: Double_Sarsa_No_Experience_30_no_norm_1746084017 | Difficulty: 3 | Mean: -9.00 | SD: 0.00 | Min: -9.0 | Max: -9.0
+Agent: Double_Sarsa_Prioritised_Experience_30_1746028364 | Difficulty: 0 | Mean: -25.00 | SD: 0.00 | Min: -25.0 | Max: -25.0
+Agent: Double_Sarsa_Prioritised_Experience_30_1746028364 | Difficulty: 1 | Mean: -30.00 | SD: 0.00 | Min: -30.0 | Max: -30.0
+Agent: Double_Sarsa_Prioritised_Experience_30_1746028364 | Difficulty: 2 | Mean: -3.00 | SD: 0.00 | Min: -3.0 | Max: -3.0
+Agent: Double_Sarsa_Prioritised_Experience_30_1746028364 | Difficulty: 3 | Mean: -3.00 | SD: 0.00 | Min: -3.0 | Max: -3.0
+Agent: Double_Sarsa_Prioritised_Experience_30_1746037304 | Difficulty: 0 | Mean: 0.31 | SD: 6.64 | Min: -27.0 | Max: 18.0
+Agent: Double_Sarsa_Prioritised_Experience_30_1746037304 | Difficulty: 1 | Mean: -3.23 | SD: 7.84 | Min: -32.0 | Max: 13.0
+Agent: Double_Sarsa_Prioritised_Experience_30_1746037304 | Difficulty: 2 | Mean: 10.50 | SD: 4.59 | Min: -1.0 | Max: 26.0
+Agent: Double_Sarsa_Prioritised_Experience_30_1746037304 | Difficulty: 3 | Mean: 7.12 | SD: 3.20 | Min: -4.0 | Max: 18.0
+Agent: Double_Sarsa_Prioritised_Experience_30_no_norm_1746054687 | Difficulty: 0 | Mean: -5.44 | SD: 6.98 | Min: -32.0 | Max: 11.0
+Agent: Double_Sarsa_Prioritised_Experience_30_no_norm_1746054687 | Difficulty: 1 | Mean: -18.01 | SD: 12.51 | Min: -53.0 | Max: 4.0
+Agent: Double_Sarsa_Prioritised_Experience_30_no_norm_1746054687 | Difficulty: 2 | Mean: 5.35 | SD: 3.05 | Min: -2.0 | Max: 17.0
+Agent: Double_Sarsa_Prioritised_Experience_30_no_norm_1746054687 | Difficulty: 3 | Mean: 3.80 | SD: 2.50 | Min: -2.0 | Max: 14.0
+Agent: Double_Sarsa_Prioritised_Experience_With_Cache_30_1746028893 | Difficulty: 0 | Mean: 21.23 | SD: 14.95 | Min: -4.0 | Max: 69.0
+Agent: Double_Sarsa_Prioritised_Experience_With_Cache_30_1746028893 | Difficulty: 1 | Mean: 6.00 | SD: 9.32 | Min: -19.0 | Max: 41.0
+Agent: Double_Sarsa_Prioritised_Experience_With_Cache_30_1746028893 | Difficulty: 2 | Mean: 25.71 | SD: 13.78 | Min: 2.0 | Max: 79.0
+Agent: Double_Sarsa_Prioritised_Experience_With_Cache_30_1746028893 | Difficulty: 3 | Mean: 20.51 | SD: 12.46 | Min: -1.0 | Max: 63.0
+Agent: Double_Sarsa_Prioritised_Experience_With_Cache_30_no_norm_1746037087 | Difficulty: 0 | Mean: 21.16 | SD: 11.27 | Min: -1.0 | Max: 59.0
+Agent: Double_Sarsa_Prioritised_Experience_With_Cache_30_no_norm_1746037087 | Difficulty: 1 | Mean: 2.82 | SD: 7.20 | Min: -23.0 | Max: 41.0
+Agent: Double_Sarsa_Prioritised_Experience_With_Cache_30_no_norm_1746037087 | Difficulty: 2 | Mean: 21.80 | SD: 7.48 | Min: 0.0 | Max: 50.0
+Agent: Double_Sarsa_Prioritised_Experience_With_Cache_30_no_norm_1746037087 | Difficulty: 3 | Mean: 16.99 | SD: 10.66 | Min: -1.0 | Max: 67.0
+Agent: Double_Sarsa_Random_Experience_30_1746028378 | Difficulty: 0 | Mean: -30.00 | SD: 0.00 | Min: -30.0 | Max: -30.0
+Agent: Double_Sarsa_Random_Experience_30_1746028378 | Difficulty: 1 | Mean: -30.00 | SD: 0.00 | Min: -30.0 | Max: -30.0
+Agent: Double_Sarsa_Random_Experience_30_1746028378 | Difficulty: 2 | Mean: -3.00 | SD: 0.00 | Min: -3.0 | Max: -3.0
+Agent: Double_Sarsa_Random_Experience_30_1746028378 | Difficulty: 3 | Mean: -3.00 | SD: 0.00 | Min: -3.0 | Max: -3.0
+Agent: Double_Sarsa_Random_Experience_30_1746056265 | Difficulty: 0 | Mean: -2.89 | SD: 7.18 | Min: -37.0 | Max: 16.0
+Agent: Double_Sarsa_Random_Experience_30_1746056265 | Difficulty: 1 | Mean: -6.35 | SD: 8.59 | Min: -53.0 | Max: 7.0
+Agent: Double_Sarsa_Random_Experience_30_1746056265 | Difficulty: 2 | Mean: 0.65 | SD: 3.41 | Min: -11.0 | Max: 22.0
+Agent: Double_Sarsa_Random_Experience_30_1746056265 | Difficulty: 3 | Mean: -0.67 | SD: 2.54 | Min: -12.0 | Max: 12.0

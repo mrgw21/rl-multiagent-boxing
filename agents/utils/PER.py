@@ -21,7 +21,7 @@ def store_experience(agent, experience, priority, cache=True):
         
 def update_cache(agent):
     """ 
-    Implementatino of the build_cache function from Daley & Amato - refreshes the cache
+    Implementation of the build_cache function from Daley & Amato - refreshes the cache
     """
     agent.cache = [] # Initialize empty list C
     replay_buffer_list = list(agent.replay_buffer)  # Convert deque to list

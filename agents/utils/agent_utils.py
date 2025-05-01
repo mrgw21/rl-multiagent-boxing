@@ -25,26 +25,30 @@ def plot_rewards(rewards, graph_name="Learning Curve", save_path=None):
             plt.savefig(save_path)
         plt.close()
 
-def save_agent(agent, name):
+def save_linear_agent(agent, name):
     """Save an agent as a pickled object."""
     path = f"saved_agents/testing_agents/{name}.pkl"
     with open(path, 'wb') as file_:
         pickle.dump(agent, file_)
     print(f"Agent successfully saved to {path}.")
 
-def load_agent(name, best=False):
+def load_linear_agent(name, best=False, absolute_path=False):
     """Load an agent from a pickled object."""
     # Used for the agents in the best agents folder
     if best:
         path = f"saved_agents/best_agents/{name}.pkl"
     else:
         path = f"saved_agents/testing_agents/{name}.pkl"
+    
+    if absolute_path:
+        path=name
+
     with open(path, 'rb') as file_:
         agent = pickle.load(file_)
     print(f"Agent successfully loaded from {path}.")
     return agent
 
-def test_agent(agent, episodes=5, render_mode="human", difficulty=3, cartpole=False):
+def test_linear_agent(agent, episodes=5, render_mode="human", difficulty=3, cartpole=False):
     """Run and render an episode to test the agent's performance after training."""
     if cartpole:
         env = gym.make('CartPole-v1')
