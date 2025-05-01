@@ -81,9 +81,6 @@ class PPOAgent:
             delta = rewards[i] + (self.gamma * state_value[i + 1] * mask[i]) - state_value[i]
             gae = delta + (self.gamma * self.lam * mask[i] * gae)
             returns.insert(0, gae + state_value[i])
-        
-        print("rewards: ", len(rewards))
-        print("state_value: ", len(state_value))
 
         returns = torch.tensor(returns, dtype=torch.float32).to(device)
         adv = returns - torch.tensor(state_value[:-1], dtype=torch.float32).to(device)
@@ -139,12 +136,14 @@ class PPOAgent:
             value = self.critic(state)
         return torch.squeeze(value).item()
 
-    def calculate_losses(self, surrogate_loss, entropy, returns, value_predictions):
+    def calculate_losses(self, surrogate_loss, entropy, returns, old_value_prediction, value_predictions):
         entropy_bonus = self.entropy_coef * entropy
         policy_loss = surrogate_loss - entropy_bonus
         
-        value_loss = (returns - value_predictions) ** 2
-        value_loss = value_loss.mean()
+        value_pred_clipped = old_value_prediction + (value_predictions - old_value_prediction).clamp(1 - self.clip_epsi, 1 + self.clip_epsi)
+        value_loss_unclipped = (value_predictions - returns) ** 2
+        value_loss_clipped = (value_pred_clipped - returns) ** 2
+        value_loss = 0.5 * torch.max(value_loss_unclipped, value_loss_clipped).mean()
         
         return policy_loss, value_loss
 
@@ -187,6 +186,7 @@ class PPOAgent:
                 batch_returns = returns[batch_idx]
                 batch_advantages = advantages[batch_idx]
                 batch_state_value = self.critic(batch_states).squeeze()
+                old_batch_state_values = state_values[batch_idx]
 
 
                 # Computes new policy
@@ -198,11 +198,9 @@ class PPOAgent:
                     batch_advantages, batch_old_action_prob, dist.log_prob(batch_actions)
                 )
                 policy_loss, value_loss = self.calculate_losses(
-                    surrogate_loss, entropy_loss, batch_returns, batch_state_value
+                    surrogate_loss, entropy_loss, batch_returns, old_batch_state_values, batch_state_value
                 )
                 
-                print("policy loss: ", policy_loss)
-                print("value loss: ", value_loss)
 
                 self.actor.optimizer.zero_grad()
                 policy_loss.backward()
