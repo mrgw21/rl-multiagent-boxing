@@ -200,8 +200,6 @@ class PPOAgent:
                 policy_loss, value_loss = self.calculate_losses(
                     surrogate_loss, entropy_loss, batch_returns, old_batch_state_values, batch_state_value
                 )
-                
-                print("entropy: ", entropy_loss)
 
                 self.actor.optimizer.zero_grad()
                 policy_loss.backward()
