@@ -181,6 +181,10 @@ class PPOAgent:
                 batch_returns = returns[batch_idx]
                 batch_advantages = advantages[batch_idx]
                 batch_state_value = self.critic(batch_states).squeeze()
+                
+                print("returns shape:", returns.shape)
+                print("value_predictions shape:", batch_state_value.shape)
+
 
                 # Computes new policy
                 logits = self.actor(batch_states)
