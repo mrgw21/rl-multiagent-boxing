@@ -182,7 +182,9 @@ class PPOAgent:
                 batch_advantages = advantages[batch_idx]
                 batch_state_value = self.critic(batch_states).squeeze()
                 
-                print("returns shape:", returns.shape)
+                print("returns shape:", batch_returns.shape)
+                print("advantages", batch_advantages.shape)
+                print("old_action_prob", batch_old_action_prob.shape)
                 print("value_predictions shape:", batch_state_value.shape)
 
 
