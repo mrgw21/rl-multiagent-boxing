@@ -149,12 +149,11 @@ class PPOAgent:
         # Normalize observation and move to correct device
         if isinstance(state, tuple):
             state = state[0]
-
         state = torch.tensor(state, dtype=torch.float32) / 255.0
         state = state.permute(3, 0, 1, 2)
         return state.to(device)
 
-    def learn(self, batch_size=4, epochs = 4): #Epochs ??
+    def learn(self, batch_size=4, epochs = 4):
         """Learn from collected data with minibatch SGD."""
         states = torch.stack(self.information['state']).to(device).squeeze(1)
         actions = torch.stack(self.information['action']).to(device)
@@ -197,6 +196,9 @@ class PPOAgent:
                 policy_loss, value_loss = self.calculate_losses(
                     surrogate_loss, entropy_loss, batch_returns, batch_state_value
                 )
+                
+                print("policy loss: ", policy_loss)
+                print("value loss: ", value_loss)
 
                 self.actor.optimizer.zero_grad()
                 policy_loss.backward()
