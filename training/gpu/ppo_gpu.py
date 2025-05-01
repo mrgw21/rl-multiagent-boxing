@@ -81,10 +81,14 @@ class PPOAgent:
             delta = rewards[i] + (self.gamma * state_value[i + 1] * mask[i]) - state_value[i]
             gae = delta + (self.gamma * self.lam * mask[i] * gae)
             returns.insert(0, gae + state_value[i])
+        
+        print("rewards: ", len(rewards))
+        print("state_value: ", len(state_value))
 
-        adv = torch.tensor(np.array(returns) - state_value[:-1], dtype=torch.float32).to(device)
-        adv = (adv - torch.mean(adv)) / (torch.std(adv) + 1e-10)
         returns = torch.tensor(returns, dtype=torch.float32).to(device)
+        adv = returns - torch.tensor(state_value[:-1], dtype=torch.float32).to(device)
+        adv = (adv - torch.mean(adv)) / (torch.std(adv) + 1e-10)
+        
         return returns, adv
     
     def add_final_state_value(self, state):
