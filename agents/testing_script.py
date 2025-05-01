@@ -29,14 +29,14 @@ import csv
 import numpy as np
 from utils.agent_utils import load_linear_agent, test_linear_agent
 
-# Dir with saved agents
-agent_dir = "saved_agents/best_agents/"
-best = True  # Set to True if using 'best_agents' dir
 
-# CSV output path to save results to 
+agent_dir = "saved_agents/best_agents/"
+best = True  
+
+
 output_csv = "best_agent_rewards_output.csv"
 
-# Filter agent filenames: contains "30" and ends with "00.pkl"
+
 agent_files = [
     f for f in os.listdir(agent_dir)
     # if "_30_" and 'Experience' in f and not (f.endswith("00.pkl") or f.endswith('way.pkl'))
@@ -46,27 +46,22 @@ print("Found agents:", agent_files)
 
 difficulties = [1, 2, 3, 0]
 
-# Open CSV file for writing
 with open(output_csv, mode='w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     
-    # Write CSV header
     writer.writerow(["agent_name", "difficulty", "episode", "reward"])
     
     for agent_file in agent_files:
         agent_name = agent_file.replace(".pkl", "")
         print(f"\nTesting agent: {agent_name}")
         
-        # Load the agent
         agent = load_linear_agent(agent_name, best=best)
 
         try:
-            # Test on each difficulty level
             for difficulty in difficulties:
                 print(f"  Testing difficulty {difficulty}")
                 rewards = test_linear_agent(agent, episodes=500, render_mode=None, difficulty=difficulty)
                 
-                # Write each reward per episode
                 for episode_idx, reward in enumerate(rewards):
                     writer.writerow([agent_name, difficulty, episode_idx + 1, reward])
         except:
