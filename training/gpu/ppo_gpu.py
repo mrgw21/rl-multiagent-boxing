@@ -77,15 +77,19 @@ class PPOAgent:
         returns = []
         mask = [1 if not x else 0 for x in done]
         
-        for i in reversed(range(len(rewards) - 1)):
+        for i in reversed(range(len(rewards))):
             delta = rewards[i] + (self.gamma * state_value[i + 1] * mask[i]) - state_value[i]
             gae = delta + (self.gamma * self.lam * mask[i] * gae)
             returns.insert(0, gae + state_value[i])
 
-        adv = torch.tensor(np.array(returns) - state_value[:-1], dtype=torch.float32, device=device)
+        adv = torch.tensor(np.array(returns) - state_value[:-1], dtype=torch.float32).to(device)
         adv = (adv - torch.mean(adv)) / (torch.std(adv) + 1e-10)
-        returns = torch.tensor(returns, dtype=torch.float32, device=device)
+        returns = torch.tensor(returns, dtype=torch.float32).to(device)
         return returns, adv
+    
+    def add_final_state_value(self, state):
+        state_t = self.state_manipulation(state)
+        self.information['state_value_function'].append(self.get_state_value(state_t))
     
     def calculate_returns(self, rewards):
         """Calculates returns
@@ -147,7 +151,7 @@ class PPOAgent:
         state = state.permute(3, 0, 1, 2)
         return state.to(device)
 
-    def learn(self, batch_size=128, epochs=4):
+    def learn(self, batch_size=4, epochs = 4): #Epochs ??
         """Learn from collected data with minibatch SGD."""
         states = torch.stack(self.information['state']).to(device).squeeze(1)
         actions = torch.stack(self.information['action']).to(device)
@@ -158,14 +162,19 @@ class PPOAgent:
 
         returns, advantages = self.compute_gen_advantage_estimation()
 
+        # Finds dataset size
         dataset_size = advantages.shape[0]
         
+        # Four epochs on this whole batch of 100
         for _ in range(epochs):
             indices = torch.randperm(dataset_size)
+            
+            # In slices of 4 the agent is trained
             for start_idx in range(0, dataset_size, batch_size):
                 end_idx = min(start_idx + batch_size, dataset_size)
                 batch_idx = indices[start_idx:end_idx].to(torch.long)
 
+                # Retrieves information from batches
                 batch_states = states[batch_idx]
                 batch_actions = actions[batch_idx]
                 batch_old_action_prob = old_action_prob[batch_idx]
@@ -173,6 +182,7 @@ class PPOAgent:
                 batch_advantages = advantages[batch_idx]
                 batch_state_value = self.critic(batch_states).squeeze()
 
+                # Computes new policy
                 logits = self.actor(batch_states)
                 dist = Categorical(logits=logits)
                 entropy_loss = torch.mean(dist.entropy())
