@@ -117,7 +117,7 @@ class PPOAgent:
         ratio = torch.exp(new_probability - old_probability)
         unclipped_loss = ratio * advantage
         clipped_loss = torch.clamp(ratio, 1 - self.clip_epsi, 1 + self.clip_epsi) * advantage
-        return torch.minimum(unclipped_loss, clipped_loss)
+        return -(torch.min(unclipped_loss, clipped_loss)).mean()
 
     def get_action(self, state, evaluate=False):
         with torch.no_grad():
@@ -137,8 +137,11 @@ class PPOAgent:
 
     def calculate_losses(self, surrogate_loss, entropy, returns, value_predictions):
         entropy_bonus = self.entropy_coef * entropy
-        policy_loss = (-surrogate_loss - entropy_bonus).mean()
-        value_loss = func.smooth_l1_loss(returns, value_predictions).mean()
+        policy_loss = surrogate_loss - entropy_bonus
+        
+        value_loss = (returns - value_predictions) ** 2
+        value_loss = value_loss.mean()
+        
         return policy_loss, value_loss
 
     @staticmethod
