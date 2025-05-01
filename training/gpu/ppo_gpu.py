@@ -140,7 +140,7 @@ class PPOAgent:
         entropy_bonus = self.entropy_coef * entropy
         policy_loss = surrogate_loss - entropy_bonus
         
-        value_pred_clipped = old_value_prediction + (value_predictions - old_value_prediction).clamp(1 - self.clip_epsi, 1 + self.clip_epsi)
+        value_pred_clipped = old_value_prediction + (value_predictions - old_value_prediction).clamp(self.clip_epsi, self.clip_epsi)
         value_loss_unclipped = (value_predictions - returns) ** 2
         value_loss_clipped = (value_pred_clipped - returns) ** 2
         value_loss = 0.5 * torch.max(value_loss_unclipped, value_loss_clipped).mean()
