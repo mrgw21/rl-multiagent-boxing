@@ -35,9 +35,9 @@ def gather_data(actor=None, critic=None, target_episodes=3000):
     agent = ppo_gpu.PPOAgent(actor, critic)
     episode_num = 0
 
-    os.makedirs("/mnt/saved_best_model", exist_ok=True)
-    os.makedirs("/mnt/saved_models", exist_ok=True)
-    os.makedirs("/mnt/saved_metrics", exist_ok=True)
+    os.makedirs("/mnt/new_saved_model", exist_ok=True)
+    os.makedirs("/mnt/new_saved_models", exist_ok=True)
+    os.makedirs("/mnt/new_saved_metrics", exist_ok=True)
 
     while episode_num < target_episodes:
         done = False
@@ -69,19 +69,19 @@ def gather_data(actor=None, critic=None, target_episodes=3000):
         
         if episode_reward > best_reward:
             best_reward = episode_reward
-            agent.actor.save_model("/mnt/saved_best_model/highest_model.pth")
+            agent.actor.save_model("/mnt/new_saved_model/highest_model.pth")
+            print(f"Saving current best model with {best_reward} reward")
             
-        
         if episode_num % 100 == 0:
-            agent.actor.save_model(f"/mnt/saved_models/actor_ep{episode_num}.pth")
-            agent.critic.save_model(f"/mnt/saved_models/critic_ep{episode_num}.pth")
-            output_to_excel(reward_tracker, f"/mnt/saved_metrics/training_rewards_{episode_num}.xlsx")
+            agent.actor.save_model(f"/mnt/new_saved_models/actor_ep{episode_num}.pth")
+            agent.critic.save_model(f"/mnt/new_saved_models/critic_ep{episode_num}.pth")
+            output_to_excel_reward(reward_tracker, f"/mnt/new_saved_metrics/training_rewards_{episode_num}.xlsx")
             print(f"Saved models at episode {episode_num}")
 
-    output_to_excel(agent.loss_tracker, "/mnt/saved_metrics/loss.xlsx")
-    agent.actor.save_model("/mnt/saved_models/actor_final.pth")
-    agent.critic.save_model("/mnt/saved_models/critic_final.pth")
-    output_to_excel(reward_tracker, "/mnt/saved_metrics/training_rewards_final.xlsx")
+    output_to_excel(agent.loss_tracker, "/mnt/new_saved_metrics/loss.xlsx")
+    agent.actor.save_model("/mnt/new_saved_models/actor_final.pth")
+    agent.critic.save_model("/mnt/new_saved_models/critic_final.pth")
+    output_to_excel_reward(reward_tracker, "/mnt/new_saved_metrics/training_rewards_final.xlsx")
 
 
 
@@ -105,11 +105,16 @@ def evaluate(actor_path, critic_path):
 
         reward_tracker.append(cumulative_reward)
 
-    output_to_excel(reward_tracker, "eval_rewards.xlsx")
+    output_to_excel_reward(reward_tracker, "eval_rewards.xlsx")
 
-def output_to_excel(info: list, pathname='rewards.xlsx'):
-    df = pd.DataFrame(info, columns=['Rewards'])
+def output_to_excel(info: list, pathname='loss.xlsx'):
+    df = pd.DataFrame(info, columns=['Loss'])
     df.to_excel(pathname, index=False, sheet_name='sheet1')
+
+def output_to_excel_reward(reward_list, filename):
+    df = pd.DataFrame({'Episode': list(range(1, len(reward_list)+1)),
+                       'Reward': reward_list})
+    df.to_excel(filename, index=False)
 
 if __name__ == "__main__":
     gather_data()
