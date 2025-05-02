@@ -17,21 +17,21 @@ class CNNFeatureExtractor(nn.Module):
         """
         super(CNNFeatureExtractor, self).__init__()
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(4, 32, kernel_size=3, padding=1), # 4 channels for the input image, 32 filters, kernel size 3, padding 1
+            nn.Conv2d(4, 32, kernel_size=3, padding=1), # 4 channels for the input image, 32 out, kernel size 3, padding 1
             nn.ReLU(), # ReLU activation function
-            nn.MaxPool2d(2), # Max pooling with a pool size of 2
+            nn.MaxPool2d(2), # (42,42)
 
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1), # 21 -> 64
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(2), # (21,21)
 
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1), # 64 -> 128
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(2), #(10,10)
 
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1), # 128 -> 128
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(2), # (5,5)
 
             nn.AdaptiveAvgPool2d((5, 5))  # Output shape fixed to (128, 5, 5)
         )
@@ -61,26 +61,9 @@ class Actor(nn.Module):
         Initialise the Actor.
         """
         super(Actor, self).__init__()  
-        self.layers = nn.Sequential(
-        nn.Conv2d(4, 32, kernel_size=3, padding=1), # 4 channels for the input image, 32 filters, kernel size 3, padding 1
-        nn.ReLU(), # ReLU activation function
-        nn.MaxPool2d(2), # Max pooling with a pool size of 2
-
-        nn.Conv2d(32, 64, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.MaxPool2d(2),
-
-        nn.Conv2d(64, 128, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.MaxPool2d(2),
-
-        nn.Conv2d(128, 128, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.MaxPool2d(2),
-
-        nn.AdaptiveAvgPool2d((5, 5)),  # Output shape fixed to (128, 5, 5)
+        self.conv_layers = CNNFeatureExtractor()
+        self.actor_layers = nn.Sequential(
         nn.Flatten(1),
-        
         nn.Linear(128 * 5 * 5, 512), 
         nn.ReLU(),
         nn.Linear(512, 256),
@@ -100,7 +83,7 @@ class Actor(nn.Module):
         Orthogonal initialisation of the weights for the FC layers, bias is set to 0. 
         As per ICLR paper.
         """
-        for m in self.layers:
+        for m in self.actor_layers():
             # If the layer is a conv layer, initialise the weights and set the bias to 0
             if isinstance(m, nn.Conv2d):
                 init.orthogonal_(m.weight, gain=nn.init.calculate_gain('relu')) 
@@ -118,15 +101,15 @@ class Actor(nn.Module):
         """
         Print the weights of the Actor.
         """
-        for name, param in self.layers.named_parameters():
-            print(f"Actor layer: {name}")
-            print(param.data)  # or param for the raw tensor
+        for name, param in self.named_parameters():
+            print(f"{name}: {param.data}")
 
     def forward(self, x):
         """
         Forward pass of the Actor.
         """
-        return self.layers(x)
+        x = self.conv_layers(x)
+        return self.actor_layers(x)
 
     def save_model(self, path="training/models/actor_model.pth"):
         """
@@ -152,25 +135,8 @@ class Critic(nn.Module):
         Initialise the Critic.
         """
         super(Critic, self).__init__()
-        self.layers = nn.Sequential(
-        nn.Conv2d(4, 32, kernel_size=3, padding=1), # 4 channels for the input image, 32 filters, kernel size 3, padding 1
-        nn.ReLU(), # ReLU activation function
-        nn.MaxPool2d(2), # Max pooling with a pool size of 2
-
-        nn.Conv2d(32, 64, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.MaxPool2d(2),
-
-        nn.Conv2d(64, 128, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.MaxPool2d(2),
-
-        nn.Conv2d(128, 128, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.MaxPool2d(2),
-
-        nn.AdaptiveAvgPool2d((5, 5)),  # Output shape fixed to (128, 5, 5)
-        
+        self.conv_layers = CNNFeatureExtractor()
+        self.critic_layers = nn.Sequential(
         nn.Flatten(1),
         nn.Linear(128 * 5 * 5, 512), 
         nn.ReLU(),
@@ -185,7 +151,7 @@ class Critic(nn.Module):
         Orthogonal initialisation of the weights for the FC layers, bias is set to 0. 
         As per ICLR paper.
         """
-        for m in self.layers:
+        for m in self.critic_layers:
             # If the layer is a conv layer, initialise the weights and set the bias to 0
             if isinstance(m, nn.Conv2d):
                 init.orthogonal_(m.weight, gain=nn.init.calculate_gain('relu'))
@@ -202,16 +168,18 @@ class Critic(nn.Module):
         """
         Print the weights of the Critic.
         """
-        for name, param in self.layers.named_parameters():
-            print(f"Critic layer: {name}")
-            print(param.data)  # or param for the raw tensor
+        for name, param in self.named_parameters():
+            print(f"{name}: {param.data}")
+
 
 
     def forward(self, x):
         """
         Forward pass of the Critic.
         """
-        return self.layers(x)
+        
+        x = self.conv_layers(x)
+        return self.critic_layers(x)
 
     def save_model(self, path="training/models/critic_model.pth"):
         """

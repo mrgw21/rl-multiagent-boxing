@@ -20,10 +20,12 @@ if torch.cuda.is_available(): # If CUDA is available
 else:
     print("No CUDA device available.") # Print that no CUDA device is available
 
-# Crucial that gymnasium is consistently used, rather tahn gym. Note that gymnasium is shortened to gym in import
-env = gym.make("ALE/Boxing-v5", frameskip = 1)
+# Crucial that gymnasium is consistently used, rather than gym. Note that gymnasium is shortened to gym in import
+env = gym.make("ALE/Boxing-v5", frameskip = 1) # Removes frameskip so it can be altered in AtariPreprocessing step
+
+# Preprocesses the environment to skip four frames, reduce screen_size to 84, initiates grey_scale
 env = gym.wrappers.AtariPreprocessing(env, frame_skip=4, grayscale_obs=True, grayscale_newaxis=True, screen_size=84, scale_obs=False, terminal_on_life_loss=True)
-env = gym.wrappers.FrameStackObservation(env, 4)
+env = gym.wrappers.FrameStackObservation(env, 4) # Stacks four frames, recommended in Atari RL 
 
 
 def gather_data(actor=None, critic=None, target_episodes=3000):
@@ -42,20 +44,23 @@ def gather_data(actor=None, critic=None, target_episodes=3000):
     reward_tracker = []
     best_reward = float('-inf')
 
-    agent = ppo_gpu.PPOAgent(actor, critic)
+    agent = PPOAgent(actor, critic)
     episode_num = 0
 
+    # Creates directories if they do not exist to save the metrics
     os.makedirs("/mnt/new_saved_model", exist_ok=True)
     os.makedirs("/mnt/new_saved_models", exist_ok=True)
     os.makedirs("/mnt/new_saved_metrics", exist_ok=True)
 
     while episode_num < target_episodes:
-        done = False
-        state = env.reset()
+        
+        done = False # Initializes done to False
+        state = env.reset() # Resets environment to start an episode
         episode_reward = 0
-        episode_timestamp = 0
-        while not done:
-            state_t = agent.state_manipulation(state)
+        
+        while not done: # While the episode is not terminated
+            
+            state_t = agent.state_manipulation(state) # Permute and divide state by 255
 
             action, prob = agent.get_action(state_t) # Get the action and the probability of the action
             action = torch.tensor(action, dtype=torch.int64) # Convert the action to a tensor
@@ -66,8 +71,6 @@ def gather_data(actor=None, critic=None, target_episodes=3000):
 
             episode_reward += reward # Update the episode reward
             state = new_state # Update the state
-            
-            episode_timestamp += 1
 
         reward_tracker.append(episode_reward)
         episode_num += 1
@@ -76,18 +79,20 @@ def gather_data(actor=None, critic=None, target_episodes=3000):
         agent.add_final_state_value(state) # Add the final state value
         agent.learn() # Learn from the collected data
         
-        
+        # Saves model if it is the best results so far
         if episode_reward > best_reward:
             best_reward = episode_reward
             agent.actor.save_model("/mnt/new_saved_model/highest_model.pth") # Save the highest reward model
             print(f"Saving current best model with {best_reward} reward")
-            
+        
+        # Saves different versions of the model every 100 episodes and saves the rewards
         if episode_num % 100 == 0:
             agent.actor.save_model(f"/mnt/new_saved_models/actor_ep{episode_num}.pth") # Save the actor model at the current episode
             agent.critic.save_model(f"/mnt/new_saved_models/critic_ep{episode_num}.pth") # Save the critic model at the current episode
             output_to_excel_reward(reward_tracker, f"/mnt/new_saved_metrics/training_rewards_{episode_num}.xlsx") # Save the rewards to an excel file
             print(f"Saved models at episode {episode_num}")
 
+    # Does a final save of the loss, the models and rewards
     output_to_excel(agent.loss_tracker, "/mnt/new_saved_metrics/loss.xlsx") # Output the loss to an excel file
     agent.actor.save_model("/mnt/new_saved_models/actor_final.pth") # Save the final actor model
     agent.critic.save_model("/mnt/new_saved_models/critic_final.pth") # Save the final critic model
@@ -95,37 +100,51 @@ def gather_data(actor=None, critic=None, target_episodes=3000):
 
 
 
-def evaluate(actor_path, critic_path):
+def evaluate(actor):
     """
     Evaluates the model.
     Args:
         actor_path (str): The path to the actor model.
-        critic_path (str): The path to the critic model.
     Outputs:
         eval_rewards.xlsx: The rewards for the evaluation episodes.
     """
-    agent = PPOAgent(actor=actor_path, critic=critic_path)
-    reward_tracker = []
 
-    for episode in range(500):
-        done = False
-        state = env.reset()
-        cumulative_reward = 0
+    agent = PPOAgent(actor=actor, critic=None)
+    difficulties = [0,1,2,3]
+    reward_dict = {}
+    for diff in difficulties:
+        reward_tracker = []
+        
+        # Crucial that gymnasium is consistently used, rather than gym. Note that gymnasium is shortened to gym in import
+        env = gym.make("ALE/Boxing-v5", frameskip = 1, difficulty = diff) # Removes frameskip so it can be altered in AtariPreprocessing step
 
-        while not done:
-            state_t = agent.state_manipulation(state) # Manipulate the state
-            action, prob = agent.get_action(state_t, evaluate=True) # Get the action and the probability of the action
-            action_tensor = torch.tensor(action, dtype=torch.int64, device=device) # Convert the action to a tensor
-            new_state, reward, done, trunc, info = env.step(action) # Step the environment
-            agent.updateInformation(state_t, reward, done, trunc, info, action_tensor, prob) # Update the information
-            state = new_state # Update the state
-            cumulative_reward += reward
+        # Preprocesses the environment to skip four frames, reduce screen_size to 84, initiates grey_scale
+        env = gym.wrappers.AtariPreprocessing(env, frame_skip=4, grayscale_obs=True, grayscale_newaxis=True, screen_size=84, scale_obs=False, terminal_on_life_loss=True)
+        env = gym.wrappers.FrameStackObservation(env, 4) # Stacks four frames, recommended in Atari RL 
 
-        reward_tracker.append(cumulative_reward) 
+        for episode in range(500):
+            done = False
+            state = env.reset()
+            cumulative_reward = 0
 
-    output_to_excel_reward(reward_tracker, "eval_rewards.xlsx") # Output the rewards to an excel file
+            while not done:
+                state_t = agent.state_manipulation(state) # Manipulate the state
+                
+                action, prob = agent.get_action(state_t, evaluate=True) # Get the action and the probability of the action
+                action_tensor = torch.tensor(action, dtype=torch.int64, device=device) # Convert the action to a tensor
+        
+                new_state, reward, done, trunc, info = env.step(action) # Step the environment
+                
+                state = new_state # Update the state
+                cumulative_reward += reward
 
-def output_to_excel(reward_list, filename):
+            reward_tracker.append(cumulative_reward) 
+
+        reward_dict[diff] = reward_tracker # Tracks rewards in dictionary depending on difficulty
+    df = pd.DataFrame(reward_dict, columns = difficulties)
+    df.to_excel("/mnt/new_saved_metrics/loss.xlsx", index=False)
+
+def output_to_excel(loss_list, filename):
     """
     Outputs the loss to an excel file.
     Args:
@@ -134,8 +153,8 @@ def output_to_excel(reward_list, filename):
     Outputs:
         rewards.xlsx: The rewards.
     """
-    df = pd.DataFrame({'Episode': list(range(1, len(reward_list)+1)),
-                       'Loss': reward_list})
+    df = pd.DataFrame({'Episode': list(range(1, len(loss_list)+1)),
+                       'Loss': loss_list})
     df.to_excel(filename, index=False)
 
 def output_to_excel_reward(reward_list, filename):
@@ -153,4 +172,4 @@ def output_to_excel_reward(reward_list, filename):
 
 if __name__ == "__main__":
     gather_data()
-    # For evaluation, call: evaluate('path_to_actor.pth', 'path_to_critic.pth')
+    # For evaluate, change to evaluate(path_to_actor) - > Insert your own path to actor

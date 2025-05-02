@@ -1,13 +1,3 @@
-"""
-This file will contain the Proximal Policy Agent (PPO).
-At each transition we need to collect:
-- state
-- action
-- advantage : This will need to be computed
-- rewards
-- value estimates
-"""
-
 # PPO paper link: https://arxiv.org/pdf/1707.06347
 
 import math
@@ -55,7 +45,7 @@ class PPOAgent:
             'cumulative_reward': 0
         }
         
-        self.loss_tracker = []
+        self.loss_tracker = [] # Tracks the loss function
 
     def updateInformation(self, state, reward, done, trunc, info, action, action_prob):
         """
@@ -64,8 +54,10 @@ class PPOAgent:
             state (torch.Tensor): The state.
             reward (float): The reward.
             done (bool): Whether the episode is done.
+            action (torch.Tensor): The action determined by the policy.
+            action_prob (torch.Tensor): Log probability of the Actor NN output distribution
         """
-        action = torch.tensor(action, dtype=torch.int64, device=device) # Convert the action to a tensor
+        
         self.information['state'].append(state)
         self.information['done'].append(done)
         self.information['action'].append(action)
@@ -97,64 +89,32 @@ class PPOAgent:
         state_value = self.information['state_value_function']
         done = self.information['done']
         
-        gae = 0 # General advantage estimation
-        returns = [] # Returns
-        mask = [1 if not x else 0 for x in done] # Mask is a list of 1s and 0s, where 1s are for non-done states and 0s are for done states
+        gae = 0 # Initial GAE of first state
+        returns = [] # Storing returns
+        mask = [1 if not x else 0 for x in done] # Mask is a list of 1s and 0s, where 1s are for done = False and 0s for done = True
         
         # Reverse the rewards and state values
         for i in reversed(range(len(rewards))):
             delta = rewards[i] + (self.gamma * state_value[i + 1] * mask[i]) - state_value[i] # delta is the difference between the reward and the state value
             gae = delta + (self.gamma * self.lam * mask[i] * gae) # gae is the advantage
-            returns.insert(0, gae + state_value[i])
+            returns.insert(0, gae + state_value[i]) # Inserts at the start of the list
 
-        returns = torch.tensor(returns, dtype=torch.float32).to(device) # Convert to tensor and normalise the advantage
-        adv = returns - torch.tensor(state_value[:-1], dtype=torch.float32).to(device)
+        returns = torch.tensor(returns, dtype=torch.float32).to(device) # Convert to tensor
+        returns = (returns - returns.mean()) / (returns.std() + 1e-10) # Normalises the returns
+        adv = returns - torch.tensor(state_value[:-1], dtype=torch.float32).to(device) # Computes the advantages
         adv = (adv - torch.mean(adv)) / (torch.std(adv) + 1e-10) # Normalise the advantage
         
         return returns, adv
     
     def add_final_state_value(self, state):
         """
-        Add the final state value.
+        Add the final state value to compute the advantage of the final state in the batch.
         Args:
             state (torch.Tensor): The state.
         """
         state_t = self.state_manipulation(state)
         self.information['state_value_function'].append(self.get_state_value(state_t)) # Append the state value to the information dictionary
-    
-    def calculate_returns(self, rewards):
-        """
-        Calculates returns.
-        Args:
-            rewards (list): The rewards.
-        Returns:
-            torch.Tensor: The returns.
-        """
-        
-        returns = []
-        discounted_reward = 0
-        
-        # Reverse the rewards
-        for r in reversed(rewards):
-            discounted_reward = r + discounted_reward * self.gamma
-            returns.insert(0, discounted_reward)
-        
-        # Convert to tensor and return
-        returns = torch.tensor(returns, dtype=torch.float32)
-        return returns
-        
-    def calculate_advantages(self, returns, values):
-        """
-        Calculates advantages.
-        Args:
-            returns (torch.Tensor): The returns.
-            values (torch.Tensor): The values.
-        Returns:
-            torch.Tensor: The advantages.
-        """
-        advantages = returns - values
-        advantages = (advantages - advantages.mean()) / advantages.std()
-        return advantages
+
 
     def clipped_surrogate_loss(self, advantage, old_probability, new_probability):
         """
@@ -169,7 +129,7 @@ class PPOAgent:
         ratio = torch.exp(new_probability - old_probability) # ratio is the ratio of the new probability to the old probability
         unclipped_loss = ratio * advantage # unclipped loss is the loss of the new policy
         clipped_loss = torch.clamp(ratio, 1 - self.clip_epsi, 1 + self.clip_epsi) * advantage # clipped loss is the loss of the old policy
-        return -(torch.min(unclipped_loss, clipped_loss)).mean() # return the mean of the minimum of the unclipped and clipped loss
+        return -(torch.min(unclipped_loss, clipped_loss)).mean() # return the negative mean of the minimum of the unclipped and clipped loss
 
     def get_action(self, state, evaluate=False):
         """
@@ -187,8 +147,11 @@ class PPOAgent:
                 action = torch.argmax(logits, dim=1) # if evaluate, then the action is the argmax of the logits
             else:
                 action = dist.sample() # if not evaluate, then the action is the sample of the distribution
-            log_prob = dist.log_prob(action) # log probability of the action
-            return action.item(), log_prob.item()
+            
+            log_prob = torch.squeeze(dist.log_prob(action)).item() # log probability of the action
+            action = torch.squeeze(action).item() # Retrieves action
+            
+            return action, log_prob
 
     def get_state_value(self, state):
         """
@@ -199,12 +162,15 @@ class PPOAgent:
             float: The state value.
         """
         with torch.no_grad():
-            value = self.critic(state)
+            value = self.critic(state) # Pass the state through the critic NN
         return torch.squeeze(value).item()
 
     def calculate_losses(self, surrogate_loss, entropy, returns, old_value_prediction, value_predictions):
         """
         Calculates the losses.
+        Policy loss simply calculated.
+        Value loss is clipped in this function.
+        
         Args:
             surrogate_loss (torch.Tensor): The surrogate loss.
             entropy (torch.Tensor): The entropy.
@@ -214,9 +180,13 @@ class PPOAgent:
         Returns:
             tuple: The policy loss and the value loss.
         """
-        entropy_bonus = self.entropy_coef * entropy # entropy bonus, to encourage exploration 
-        policy_loss = surrogate_loss - entropy_bonus 
         
+        # Policy loss
+        entropy_bonus = self.entropy_coef * entropy # entropy bonus, to encourage exploration 
+        policy_loss = surrogate_loss - entropy_bonus # final policy loss
+        
+        
+        # Value loss
         value_pred_clipped = old_value_prediction + (value_predictions - old_value_prediction).clamp(self.clip_epsi, self.clip_epsi)
         value_loss_unclipped = (value_predictions - returns) ** 2 # value loss unclipped is the loss of the new policy
         value_loss_clipped = (value_pred_clipped - returns) ** 2 # value loss clipped is the loss of the old policy
@@ -227,14 +197,14 @@ class PPOAgent:
     @staticmethod
     def state_manipulation(state):
         """
-        Manipulates the state.
+        Manipulates the state to reconfigure the height, width, channels and batch size.
         Args:
             state (torch.Tensor): The state.
         Returns:
             torch.Tensor: The manipulated state.
         """
         if isinstance(state, tuple):
-            state = state[0]
+            state = state[0] # Gets first element of tuple
         state = torch.tensor(state, dtype=torch.float32) / 255.0 # Normalise the observation
         state = state.permute(3, 0, 1, 2) # Permute the observation
         return state.to(device)
@@ -248,7 +218,7 @@ class PPOAgent:
         """
         states = torch.stack(self.information['state']).to(device).squeeze(1) # Stack the states
         actions = torch.stack(self.information['action']).to(device) # Stack the actions
-        old_action_prob = torch.tensor(self.information['log_prob_action'], dtype=torch.float32).to(device)
+        old_action_prob = torch.tensor(self.information['log_prob_action'], dtype=torch.float32).to(device) # Old action probability
         rewards = torch.tensor(self.information['reward'], dtype=torch.float32).to(device)
         state_values = torch.tensor(self.information['state_value_function'], dtype = torch.float32).to(device)
         done = self.information['done']
@@ -268,7 +238,7 @@ class PPOAgent:
                 end_idx = min(start_idx + batch_size, dataset_size)
                 batch_idx = indices[start_idx:end_idx].to(torch.long)
 
-                # Retrieves information from batches
+                # Retrieves information from the larger batch for learning
                 batch_states = states[batch_idx]
                 batch_actions = actions[batch_idx]
                 batch_old_action_prob = old_action_prob[batch_idx]
