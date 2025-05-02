@@ -45,6 +45,8 @@ class PPOAgent:
             'reward': [],
             'cumulative_reward': 0
         }
+        
+        self.loss_tracker = []
 
     def updateInformation(self, state, reward, done, trunc, info, action, action_prob):
         action = torch.tensor(action, dtype=torch.int64, device=device)
@@ -166,7 +168,7 @@ class PPOAgent:
         done = self.information['done']
 
         returns, advantages = self.compute_gen_advantage_estimation()
-
+        loss = []
         # Finds dataset size
         dataset_size = advantages.shape[0]
         
@@ -208,8 +210,13 @@ class PPOAgent:
                 self.critic.optimizer.zero_grad()
                 value_loss.backward()
                 self.critic.optimizer.step()
-
+                
+                total_loss = policy_loss + value_loss * 0.5
+                loss.append(total_loss)
+                
         self.reset_information()
+        final_loss = np.array(loss)
+        self.loss_tracker.append(np.mean(final_loss))
 
 
     def access_cumulative_reward(self):

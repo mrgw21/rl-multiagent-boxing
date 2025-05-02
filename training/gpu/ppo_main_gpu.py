@@ -21,7 +21,7 @@ else:
     print("No CUDA device available.")
 
 # Crucial that gymnasium is consistently used, rather tahn gym. Note that gymnasium is shortened to gym in import
-env = gym.make("ALE/Boxing-v5", frameskip=1)
+env = gym.make("ALE/Boxing-v5", frameskip = 1)
 env = gym.wrappers.AtariPreprocessing(env, frame_skip=4, grayscale_obs=True, grayscale_newaxis=True, screen_size=84, scale_obs=False, terminal_on_life_loss=True)
 env = gym.wrappers.FrameStackObservation(env, 4)
 
@@ -70,6 +70,7 @@ def gather_data(actor=None, critic=None, target_episodes=6000):
             output_to_excel(reward_tracker, f"/mnt/saved_metrics/training_rewards_{episode_num}.xlsx")
             print(f"Saved models at episode {episode_num}")
 
+    output_to_excel(agent.loss_tracker, "/mnt/saved_metrics/loss.xlsx")
     agent.actor.save_model("/mnt/saved_models/actor_final.pth")
     agent.critic.save_model("/mnt/saved_models/critic_final.pth")
     output_to_excel(reward_tracker, "/mnt/saved_metrics/training_rewards_final.xlsx")
