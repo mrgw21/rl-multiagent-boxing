@@ -107,9 +107,10 @@ def evaluate(actor_path, critic_path):
 
     output_to_excel_reward(reward_tracker, "eval_rewards.xlsx")
 
-def output_to_excel(info: list, pathname='loss.xlsx'):
-    df = pd.DataFrame(info, columns=['Loss'])
-    df.to_excel(pathname, index=False, sheet_name='sheet1')
+def output_to_excel(reward_list, filename):
+    df = pd.DataFrame({'Episode': list(range(1, len(reward_list)+1)),
+                       'Loss': reward_list})
+    df.to_excel(filename, index=False)
 
 def output_to_excel_reward(reward_list, filename):
     df = pd.DataFrame({'Episode': list(range(1, len(reward_list)+1)),
