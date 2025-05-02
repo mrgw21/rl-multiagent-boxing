@@ -156,7 +156,7 @@ class PPOAgent:
         state = state.permute(3, 0, 1, 2)
         return state.to(device)
 
-    def learn(self, batch_size=4, epochs = 4):
+    def learn(self, batch_size=128, epochs = 4):
         """Learn from collected data with minibatch SGD."""
         states = torch.stack(self.information['state']).to(device).squeeze(1)
         actions = torch.stack(self.information['action']).to(device)

@@ -29,7 +29,6 @@ class CNNFeatureExtractor(nn.Module):
             nn.MaxPool2d(2),
 
             nn.AdaptiveAvgPool2d((5, 5))  # Output shape fixed to (128, 5, 5)
-            # ICLR says do not use batch norm
         )
         self._init_weights()
 

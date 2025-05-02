@@ -26,7 +26,7 @@ env = gym.wrappers.AtariPreprocessing(env, frame_skip=4, grayscale_obs=True, gra
 env = gym.wrappers.FrameStackObservation(env, 4)
 
 
-def gather_data(actor=None, critic=None, target_episodes=6000, n_steps = 100):
+def gather_data(actor=None, critic=None, target_episodes=6000):
     """Gathers data for multiple episodes, learning after each episode."""
     cumulative_reward = 0
     reward_tracker = []
@@ -56,10 +56,6 @@ def gather_data(actor=None, critic=None, target_episodes=6000, n_steps = 100):
             state = new_state
             
             episode_timestamp += 1
-            
-            if episode_timestamp % n_steps == 0:
-                agent.add_final_state_value(state)
-                agent.learn()
 
         reward_tracker.append(episode_reward)
         episode_num += 1
