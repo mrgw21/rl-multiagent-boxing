@@ -215,7 +215,7 @@ class PPOAgent:
                 loss.append(total_loss)
                 
         self.reset_information()
-        final_loss = np.array(loss)
+        final_loss = final_loss = np.array([l.detach().cpu().item() for l in loss])
         self.loss_tracker.append(np.mean(final_loss))
 
 

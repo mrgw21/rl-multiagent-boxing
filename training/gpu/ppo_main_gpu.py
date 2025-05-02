@@ -26,14 +26,16 @@ env = gym.wrappers.AtariPreprocessing(env, frame_skip=4, grayscale_obs=True, gra
 env = gym.wrappers.FrameStackObservation(env, 4)
 
 
-def gather_data(actor=None, critic=None, target_episodes=6000):
+def gather_data(actor=None, critic=None, target_episodes=3000):
     """Gathers data for multiple episodes, learning after each episode."""
     cumulative_reward = 0
     reward_tracker = []
+    best_reward = float('-inf')
 
     agent = ppo_gpu.PPOAgent(actor, critic)
     episode_num = 0
 
+    os.makedirs("/mnt/saved_best_model", exist_ok=True)
     os.makedirs("/mnt/saved_models", exist_ok=True)
     os.makedirs("/mnt/saved_metrics", exist_ok=True)
 
@@ -63,7 +65,13 @@ def gather_data(actor=None, critic=None, target_episodes=6000):
 
         agent.add_final_state_value(state)
         agent.learn()
-
+        
+        
+        if episode_reward > best_reward:
+            best_reward = episode_reward
+            agent.actor.save_model("/mnt/saved_best_model/highest_model.pth")
+            
+        
         if episode_num % 100 == 0:
             agent.actor.save_model(f"/mnt/saved_models/actor_ep{episode_num}.pth")
             agent.critic.save_model(f"/mnt/saved_models/critic_ep{episode_num}.pth")
